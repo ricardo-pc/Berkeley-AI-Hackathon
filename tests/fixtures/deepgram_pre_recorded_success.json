@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "request_id": "dg_request_123",
+    "duration": 12.34,
+    "channels": 1
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, this is Maria Garcia. I need to refill my blood pressure medication.",
+            "confidence": 0.982,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 3.1,
+        "confidence": 0.981,
+        "channel": 0,
+        "transcript": "Hi, this is Maria Garcia.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 3.2,
+        "end": 7.8,
+        "confidence": 0.983,
+        "channel": 0,
+        "transcript": "I need to refill my blood pressure medication.",
+        "words": []
+      }
+    ]
+  }
+}
