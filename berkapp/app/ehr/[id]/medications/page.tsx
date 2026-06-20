@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useActivePatient } from "../../../_components/PatientContext";
 import {
   Button,
   Field,
@@ -9,8 +10,8 @@ import {
   Panel,
   Select,
   Stepper,
-} from "../../_components/ui";
-import { type Medication, medications, pharmacies, patient } from "../../_lib/data";
+} from "../../../_components/ui";
+import { type Medication, pharmacies } from "../../../_lib/data";
 
 const STEPS = [
   "Select Rx",
@@ -22,11 +23,11 @@ const STEPS = [
 ];
 
 export default function MedicationsPage() {
+  const patient = useActivePatient();
   const [active, setActive] = useState<Medication | null>(null);
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
 
-  // form state collected across the wizard
   const [pharmacy, setPharmacy] = useState(pharmacies[0]);
   const [qty, setQty] = useState("30");
   const [refills, setRefills] = useState("1");
@@ -37,7 +38,7 @@ export default function MedicationsPage() {
     setActive(med);
     setStep(0);
     setDone(false);
-    setPharmacy(med.pharmacy.includes("Walgreens") ? pharmacies[0] : pharmacies[0]);
+    setPharmacy(pharmacies[0]);
     setQty(med.qty.replace(/[^0-9]/g, "") || "30");
     setRefills("1");
     setAckInteraction(false);
@@ -48,10 +49,9 @@ export default function MedicationsPage() {
     setActive(null);
   }
 
-  const isWarfarin = active?.id === "rx-warfarin";
-  const canAdvance =
-    step !== 2 || ackInteraction; // must acknowledge interactions to pass step 3
-  const canSign = !isWarfarin || ackOverride.trim().length > 3;
+  const isHighAlert = !!active?.highAlert;
+  const canAdvance = step !== 2 || ackInteraction;
+  const canSign = active?.refillsLeft !== 0 || ackOverride.trim().length > 3;
 
   return (
     <div className="space-y-4">
@@ -65,49 +65,56 @@ export default function MedicationsPage() {
       </div>
 
       <Panel title="Active Medication List">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-300 text-left text-slate-500">
-              <th className="py-1.5 font-medium">Medication</th>
-              <th className="py-1.5 font-medium">Sig (directions)</th>
-              <th className="py-1.5 font-medium">Qty</th>
-              <th className="py-1.5 font-medium">Refills</th>
-              <th className="py-1.5 font-medium">Last filled</th>
-              <th className="py-1.5 font-medium">Pharmacy</th>
-              <th className="py-1.5 font-medium text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {medications.map((m) => (
-              <tr key={m.id} className="border-b border-slate-100 align-top hover:bg-slate-50">
-                <td className="py-2 font-semibold text-slate-700">
-                  {m.name}
-                  <div className="font-normal text-slate-400">{m.dose}</div>
-                </td>
-                <td className="py-2 text-slate-600">{m.sig}</td>
-                <td className="py-2 text-slate-600">{m.qty}</td>
-                <td className="py-2">
-                  <span
-                    className={
-                      m.refillsLeft === 0
-                        ? "font-semibold text-rose-600"
-                        : "text-slate-600"
-                    }
-                  >
-                    {m.refillsLeft}
-                  </span>
-                </td>
-                <td className="py-2 text-slate-500">{m.lastFilled}</td>
-                <td className="py-2 text-slate-500">{m.pharmacy}</td>
-                <td className="py-2 text-right">
-                  <Button variant="primary" onClick={() => startRefill(m)}>
-                    Refill
-                  </Button>
-                </td>
+        {patient.medications.length ? (
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-300 text-left text-slate-500">
+                <th className="py-1.5 font-medium">Medication</th>
+                <th className="py-1.5 font-medium">Sig (directions)</th>
+                <th className="py-1.5 font-medium">Qty</th>
+                <th className="py-1.5 font-medium">Refills</th>
+                <th className="py-1.5 font-medium">Last filled</th>
+                <th className="py-1.5 font-medium">Pharmacy</th>
+                <th className="py-1.5 font-medium text-right">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {patient.medications.map((m) => (
+                <tr
+                  key={m.id}
+                  className="border-b border-slate-100 align-top hover:bg-slate-50"
+                >
+                  <td className="py-2 font-semibold text-slate-700">
+                    {m.name}
+                    <div className="font-normal text-slate-400">{m.dose}</div>
+                  </td>
+                  <td className="py-2 text-slate-600">{m.sig}</td>
+                  <td className="py-2 text-slate-600">{m.qty}</td>
+                  <td className="py-2">
+                    <span
+                      className={
+                        m.refillsLeft === 0
+                          ? "font-semibold text-rose-600"
+                          : "text-slate-600"
+                      }
+                    >
+                      {m.refillsLeft}
+                    </span>
+                  </td>
+                  <td className="py-2 text-slate-500">{m.lastFilled}</td>
+                  <td className="py-2 text-slate-500">{m.pharmacy}</td>
+                  <td className="py-2 text-right">
+                    <Button variant="primary" onClick={() => startRefill(m)}>
+                      Refill
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-xs text-slate-400">No active medications on file.</p>
+        )}
         <p className="mt-3 text-[11px] text-slate-400">
           To refill a single prescription a staff member must open the order,
           re-verify the patient and insurance, clear interaction warnings, choose
@@ -128,8 +135,7 @@ export default function MedicationsPage() {
                 </div>
                 <div className="text-slate-500">{active.sig}</div>
                 <div className="mt-1 text-slate-500">
-                  Prescriber: {active.prescriber} · Refills left:{" "}
-                  {active.refillsLeft}
+                  Prescriber: {active.prescriber} · Refills left: {active.refillsLeft}
                 </div>
               </div>
               {active.refillsLeft === 0 && (
@@ -174,29 +180,28 @@ export default function MedicationsPage() {
           {step === 2 && (
             <div className="space-y-3 text-xs">
               <p className="text-slate-700">Interaction & allergy screening:</p>
-              {isWarfarin ? (
+              {isHighAlert ? (
                 <div className="space-y-2">
                   <div className="rounded border border-rose-300 bg-rose-50 p-3 text-rose-800">
-                    <div className="font-bold">⚠ SEVERE INTERACTION — Warfarin</div>
+                    <div className="font-bold">⚠ SEVERE INTERACTION — {active.name}</div>
                     <ul className="ml-4 mt-1 list-disc">
                       <li>
-                        Warfarin + Atorvastatin: increased bleeding risk — monitor
-                        INR.
+                        High-alert / narrow therapeutic index drug — dose must
+                        reflect latest INR.
                       </li>
-                      <li>
-                        Narrow therapeutic index drug — dose must reflect latest
-                        INR (2.4 on 05/22/2026).
-                      </li>
+                      <li>Increased bleeding risk with concurrent statin therapy.</li>
                     </ul>
                   </div>
                   <div className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-800">
-                    ⚠ Allergy cross-check: Penicillin, Sulfa — no conflict with this
-                    order.
+                    ⚠ Allergy cross-check:{" "}
+                    {patient.allergies.map((a) => a.substance).join(", ") ||
+                      "NKDA"}{" "}
+                    — no conflict with this order.
                   </div>
                 </div>
               ) : (
                 <div className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-800">
-                  ⚠ Minor: take with food. No severe interactions detected.
+                  ⚠ Minor: no severe interactions detected for this order.
                 </div>
               )}
               <label className="flex items-center gap-2 text-slate-700">
@@ -213,10 +218,7 @@ export default function MedicationsPage() {
           {step === 3 && (
             <div className="space-y-3">
               <Field label="Dispensing pharmacy" required>
-                <Select
-                  value={pharmacy}
-                  onChange={(e) => setPharmacy(e.target.value)}
-                >
+                <Select value={pharmacy} onChange={(e) => setPharmacy(e.target.value)}>
                   {pharmacies.map((p) => (
                     <option key={p}>{p}</option>
                   ))}
@@ -256,17 +258,24 @@ export default function MedicationsPage() {
           {step === 5 && (
             <div className="space-y-3 text-xs text-slate-700">
               <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <div className="font-semibold">{active.name} — {active.dose}</div>
-                <div>Qty {qty} · {refills} refill(s)</div>
+                <div className="font-semibold">
+                  {active.name} — {active.dose}
+                </div>
+                <div>
+                  Qty {qty} · {refills} refill(s)
+                </div>
                 <div>Pharmacy: {pharmacy}</div>
                 <div>Prescriber: {active.prescriber}</div>
               </div>
-              {isWarfarin && (
-                <Field label="Prescriber override reason (no refills remaining)" required>
+              {active.refillsLeft === 0 && (
+                <Field
+                  label="Prescriber override reason (no refills remaining)"
+                  required
+                >
                   <Input
                     value={ackOverride}
                     onChange={(e) => setAckOverride(e.target.value)}
-                    placeholder="e.g., Verbal auth from Dr. Okafor 06/20"
+                    placeholder="e.g., Verbal auth from prescriber 06/20"
                   />
                 </Field>
               )}
@@ -281,9 +290,7 @@ export default function MedicationsPage() {
               Cancel
             </Button>
             <div className="flex gap-2">
-              {step > 0 && (
-                <Button onClick={() => setStep((s) => s - 1)}>‹ Back</Button>
-              )}
+              {step > 0 && <Button onClick={() => setStep((s) => s - 1)}>‹ Back</Button>}
               {step < STEPS.length - 1 ? (
                 <Button
                   variant="primary"

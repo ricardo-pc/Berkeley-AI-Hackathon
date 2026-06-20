@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useActivePatient } from "../../../_components/PatientContext";
 import {
   Button,
   Field,
@@ -9,8 +10,8 @@ import {
   Panel,
   Select,
   Textarea,
-} from "../../_components/ui";
-import { patient, providers } from "../../_lib/data";
+} from "../../../_components/ui";
+import { providers } from "../../../_lib/data";
 
 type Encounter = {
   id: string;
@@ -25,7 +26,7 @@ const seedEncounters: Encounter[] = [
   {
     id: "te-1001",
     date: "06/18/2026",
-    subject: "Question about metformin GI side effects",
+    subject: "Question about medication side effects",
     routedTo: "Dr. A. Okafor, MD",
     priority: "Routine",
     status: "Closed",
@@ -41,6 +42,7 @@ const seedEncounters: Encounter[] = [
 ];
 
 export default function MessagesPage() {
+  const patient = useActivePatient();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
   const [encounters, setEncounters] = useState(seedEncounters);
@@ -81,9 +83,7 @@ export default function MessagesPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-700">
-          Telephone Encounters
-        </h1>
+        <h1 className="text-lg font-semibold text-slate-700">Telephone Encounters</h1>
         <Button variant="primary" onClick={start}>
           ＋ New Telephone Encounter
         </Button>
@@ -153,7 +153,7 @@ export default function MessagesPage() {
               <Input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="e.g., Message for Dr. Okafor — not feeling well"
+                placeholder="e.g., Message for provider — not feeling well"
               />
             </Field>
             <Field label="Message / transcription" required>

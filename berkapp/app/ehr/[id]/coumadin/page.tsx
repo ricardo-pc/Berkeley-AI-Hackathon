@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useActivePatient } from "../../../_components/PatientContext";
 import {
   Button,
   Field,
@@ -9,12 +10,10 @@ import {
   Panel,
   Select,
   Stepper,
-} from "../../_components/ui";
-import { inrHistory } from "../../_lib/data";
+} from "../../../_components/ui";
 
 const STEPS = ["Enter INR", "Protocol guidance", "Adjust dose", "Schedule next", "Sign"];
 
-// Very rough Coumadin nomogram for the demo — illustrative only.
 function recommend(inr: number): { action: string; tone: "ok" | "warn" | "danger" } {
   if (inr < 1.5) return { action: "Sub-therapeutic. Increase weekly dose 10–15%, recheck in 1 week.", tone: "warn" };
   if (inr < 2.0) return { action: "Slightly low. Increase weekly dose 5–10%, recheck in 1–2 weeks.", tone: "warn" };
@@ -25,12 +24,15 @@ function recommend(inr: number): { action: string; tone: "ok" | "warn" | "danger
 }
 
 export default function CoumadinPage() {
+  const patient = useActivePatient();
+  const inrHistory = patient.inrHistory;
+
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
 
   const [newInr, setNewInr] = useState("");
-  const [newDose, setNewDose] = useState("35 mg/wk");
+  const [newDose, setNewDose] = useState(inrHistory[0]?.dose ?? "35 mg/wk");
   const [recheck, setRecheck] = useState("4 weeks");
   const [notify, setNotify] = useState(false);
 
@@ -45,7 +47,7 @@ export default function CoumadinPage() {
     setStep(0);
     setDone(false);
     setNewInr("");
-    setNewDose("35 mg/wk");
+    setNewDose(inrHistory[0]?.dose ?? "35 mg/wk");
     setRecheck("4 weeks");
     setNotify(false);
   }
@@ -55,6 +57,22 @@ export default function CoumadinPage() {
     warn: "border-amber-300 bg-amber-50 text-amber-800",
     danger: "border-rose-300 bg-rose-50 text-rose-800",
   } as const;
+
+  if (inrHistory.length === 0) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-lg font-semibold text-slate-700">
+          Coumadin / Anticoagulation Management
+        </h1>
+        <Panel title="Anticoagulation">
+          <p className="text-xs text-slate-500">
+            No anticoagulation therapy on file for {patient.name}. This patient is
+            not on warfarin/Coumadin management.
+          </p>
+        </Panel>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -143,7 +161,11 @@ export default function CoumadinPage() {
       </Panel>
 
       {open && !done && (
-        <Modal title="Record INR & Adjust Coumadin" onClose={() => setOpen(false)} width="max-w-2xl">
+        <Modal
+          title="Record INR & Adjust Coumadin"
+          onClose={() => setOpen(false)}
+          width="max-w-2xl"
+        >
           <Stepper steps={STEPS} current={step} />
 
           {step === 0 && (
@@ -232,10 +254,18 @@ export default function CoumadinPage() {
           {step === 4 && (
             <div className="space-y-3 text-xs text-slate-700">
               <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <div>INR recorded: <b>{newInr || "—"}</b></div>
-                <div>New weekly dose: <b>{newDose}</b></div>
-                <div>Recheck: <b>{recheck}</b></div>
-                <div>Provider notified: <b>{notify ? "Yes" : "No"}</b></div>
+                <div>
+                  INR recorded: <b>{newInr || "—"}</b>
+                </div>
+                <div>
+                  New weekly dose: <b>{newDose}</b>
+                </div>
+                <div>
+                  Recheck: <b>{recheck}</b>
+                </div>
+                <div>
+                  Provider notified: <b>{notify ? "Yes" : "No"}</b>
+                </div>
               </div>
               <label className="flex items-center gap-2">
                 <input type="checkbox" /> Sign flowsheet entry & generate patient

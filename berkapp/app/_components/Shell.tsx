@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { allergies, patient } from "../_lib/data";
+import { useActivePatient } from "./PatientContext";
 
 const topMenus = [
   "File",
@@ -17,17 +17,17 @@ const topMenus = [
 ];
 
 const navItems = [
-  { href: "/ehr", label: "Patient Hub", icon: "🏠" },
-  { href: "/ehr/medications", label: "Medications / Rx", icon: "💊" },
-  { href: "/ehr/coumadin", label: "Coumadin / INR", icon: "🩸" },
-  { href: "/ehr/messages", label: "Telephone Encounters", icon: "📞" },
-  { href: "/ehr/appointments", label: "Appointments", icon: "📅" },
-  { href: "#", label: "Progress Notes", icon: "📝" },
-  { href: "#", label: "Labs / Diagnostics", icon: "🧪" },
-  { href: "#", label: "Documents", icon: "📁" },
-  { href: "#", label: "Referrals", icon: "↗️" },
-  { href: "#", label: "Immunizations", icon: "💉" },
-  { href: "#", label: "Account Inquiry", icon: "💳" },
+  { seg: "", label: "Patient Hub", icon: "🏠" },
+  { seg: "/medications", label: "Medications / Rx", icon: "💊" },
+  { seg: "/coumadin", label: "Coumadin / INR", icon: "🩸" },
+  { seg: "/messages", label: "Telephone Encounters", icon: "📞" },
+  { seg: "/appointments", label: "Appointments", icon: "📅" },
+  { seg: "#", label: "Progress Notes", icon: "📝" },
+  { seg: "#", label: "Labs / Diagnostics", icon: "🧪" },
+  { seg: "#", label: "Documents", icon: "📁" },
+  { seg: "#", label: "Referrals", icon: "↗️" },
+  { seg: "#", label: "Immunizations", icon: "💉" },
+  { seg: "#", label: "Account Inquiry", icon: "💳" },
 ];
 
 export function TopBar() {
@@ -43,10 +43,7 @@ export function TopBar() {
           </span>
           <nav className="hidden gap-1 md:flex">
             {topMenus.map((m) => (
-              <button
-                key={m}
-                className="rounded px-2 py-1 text-xs hover:bg-white/15"
-              >
+              <button key={m} className="rounded px-2 py-1 text-xs hover:bg-white/15">
                 {m}
               </button>
             ))}
@@ -66,23 +63,22 @@ export function TopBar() {
       </div>
       {/* icon toolbar row */}
       <div className="flex items-center gap-1 border-b border-slate-300 bg-gradient-to-b from-slate-50 to-slate-200 px-3 py-1">
-        {[
-          "Lookup",
-          "New Tel Encounter",
-          "Rx",
-          "Labs",
-          "Schedule",
-          "Hub",
-          "Messages",
-          "Print",
-        ].map((t) => (
-          <button
-            key={t}
-            className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
-          >
-            {t}
-          </button>
-        ))}
+        <Link
+          href="/ehr"
+          className="rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-50"
+        >
+          ▤ Patient List
+        </Link>
+        {["New Tel Encounter", "Rx", "Labs", "Schedule", "Hub", "Messages", "Print"].map(
+          (t) => (
+            <button
+              key={t}
+              className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
+            >
+              {t}
+            </button>
+          ),
+        )}
         <div className="ml-auto flex items-center gap-1">
           <input
             placeholder="Search patient (name / DOB / MRN)…"
@@ -98,6 +94,7 @@ export function TopBar() {
 }
 
 export function PatientBanner() {
+  const patient = useActivePatient();
   return (
     <div className="flex flex-shrink-0 flex-wrap items-stretch gap-px border-b border-slate-300 bg-slate-200">
       <div className="flex items-center gap-3 bg-white px-4 py-2">
@@ -107,9 +104,11 @@ export function PatientBanner() {
         <div>
           <div className="text-base font-bold leading-tight text-slate-800">
             {patient.name}{" "}
-            <span className="text-xs font-normal text-slate-500">
-              ({patient.preferredName})
-            </span>
+            {patient.preferredName && (
+              <span className="text-xs font-normal text-slate-500">
+                ({patient.preferredName})
+              </span>
+            )}
           </div>
           <div className="text-[11px] text-slate-600">
             {patient.sex} · {patient.age} yrs · DOB {patient.dob}
@@ -135,7 +134,10 @@ export function PatientBanner() {
       </div>
       <div className="flex items-center bg-rose-50 px-4 py-2">
         <span className="text-[11px] font-semibold text-rose-700">
-          ⚠ Allergies: {allergies.map((a) => a.substance).join(", ")}
+          ⚠ Allergies:{" "}
+          {patient.allergies.length
+            ? patient.allergies.map((a) => a.substance).join(", ")
+            : "No Known Drug Allergies"}
         </span>
       </div>
     </div>
@@ -144,6 +146,8 @@ export function PatientBanner() {
 
 export function LeftNav() {
   const pathname = usePathname();
+  const patient = useActivePatient();
+  const base = `/ehr/${patient.id}`;
   return (
     <nav className="w-52 flex-shrink-0 overflow-y-auto border-r border-slate-300 bg-slate-100">
       <div className="bg-gradient-to-b from-slate-200 to-slate-300 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
@@ -151,12 +155,13 @@ export function LeftNav() {
       </div>
       <ul>
         {navItems.map((item) => {
-          const active = pathname === item.href;
-          const disabled = item.href === "#";
+          const href = item.seg === "#" ? "#" : `${base}${item.seg}`;
+          const active = pathname === href;
+          const disabled = item.seg === "#";
           return (
             <li key={item.label}>
               <Link
-                href={item.href}
+                href={href}
                 className={`flex items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs ${
                   active
                     ? "border-l-4 border-l-sky-600 bg-white font-semibold text-sky-800"

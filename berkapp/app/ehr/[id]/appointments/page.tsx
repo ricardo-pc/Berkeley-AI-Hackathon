@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useActivePatient } from "../../../_components/PatientContext";
 import {
   Button,
   Field,
@@ -9,19 +10,15 @@ import {
   Panel,
   Select,
   Stepper,
-} from "../../_components/ui";
-import {
-  openSlots,
-  patient,
-  providers,
-  upcomingAppointments,
-  visitTypes,
-} from "../../_lib/data";
+} from "../../../_components/ui";
+import { openSlots, providers, visitTypes } from "../../../_lib/data";
 
 const STEPS = ["Reason / type", "Provider", "Find a slot", "Confirm"];
 
 export default function AppointmentsPage() {
-  const existing = upcomingAppointments[0];
+  const patient = useActivePatient();
+  const existing = patient.appointments[0];
+
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"new" | "reschedule">("new");
   const [step, setStep] = useState(0);
@@ -178,15 +175,23 @@ export default function AppointmentsPage() {
           {step === 3 && (
             <div className="space-y-3 text-xs text-slate-700">
               <div className="rounded border border-slate-200 bg-slate-50 p-3">
-                <div><b>Type:</b> {visitType}</div>
-                <div><b>Provider:</b> {provider}</div>
-                <div><b>When:</b> {day} at {slot}</div>
-                <div><b>Reason:</b> {reason}</div>
+                <div>
+                  <b>Type:</b> {visitType}
+                </div>
+                <div>
+                  <b>Provider:</b> {provider}
+                </div>
+                <div>
+                  <b>When:</b> {day} at {slot}
+                </div>
+                <div>
+                  <b>Reason:</b> {reason}
+                </div>
               </div>
-              {mode === "reschedule" && (
+              {mode === "reschedule" && existing && (
                 <div className="rounded border border-amber-300 bg-amber-50 p-2 text-amber-800">
-                  ⚠ This will cancel the existing 07/15/2026 appointment. The patient
-                  must be notified of the change.
+                  ⚠ This will cancel the existing {existing.date} appointment. The
+                  patient must be notified of the change.
                 </div>
               )}
               <label className="flex items-center gap-2">
