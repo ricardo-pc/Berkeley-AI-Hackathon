@@ -18,10 +18,12 @@ Last updated: 2026-06-20
   - Supabase-backed repo (`repo.py`) behind a `ScheduleEligibilityRepo` protocol so the service is testable without hitting the real DB.
   - Claude (Anthropic API) used only to generate the plain-English `agent_summary` for the CHW (`claude_summary.py`) — Claude sponsor track.
   - 14 regression tests added (calendar conflict, consecutive-reschedule threshold, service orchestration, missing provider, missing Supabase config, missing Anthropic key, Claude response parsing).
+- Deepgram speech-to-text API ported into the Next.js app at `berkapp/app/api/transcriptions/route.ts`.
 
 ## In progress
 - Idea/scope still being finalized (project name, SMS sponsor, calendar provider for the Scheduling action agent, whether triage agent stays in scope).
-- Next.js app integration is not wired to the STT or schedule-eligibility services yet.
+- Frontend upload/recording UI is not created yet.
+- Next.js app integration is not wired to the schedule-eligibility service yet.
 - Schedule eligibility agent has not been run against the live Supabase project yet — needs `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`ANTHROPIC_API_KEY` filled into `backend/api/.env`.
 
 ## Blockers
@@ -33,5 +35,6 @@ Last updated: 2026-06-20
 - Wire `backend/api/.env` with real Supabase + Anthropic credentials and run `scheduling_eligibility.cli` against the seeded Robert Martinez conflict scenario from `docs/database/README.md`.
 - Build the Prescription Requirement Eligibility Agent next (same pattern: deterministic checks + Claude summary).
 - Build the Eligibility Agent (insurance acceptance / missing-info checklist).
-- Decide whether the future Next.js app will proxy FastAPI or port the API contracts into TypeScript routes.
+- Run the CLI against demo voicemail audio once `DEEPGRAM_API_KEY` is configured.
+- Build a frontend upload/recording UI that calls Next.js `POST /api/transcriptions`.
 - Pick sponsor/tool for confirmation (SMS).

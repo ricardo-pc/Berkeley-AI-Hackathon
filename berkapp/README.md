@@ -1,5 +1,33 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Speech-to-text API
+
+The Deepgram speech-to-text backend now lives in this Next.js app at `POST /api/transcriptions`.
+
+Setup:
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in `DEEPGRAM_API_KEY` in `.env.local`.
+
+Run the app:
+
+```bash
+npm run dev
+```
+
+Transcribe a demo voicemail:
+
+```bash
+curl -X POST \
+  -F "file=@../demo/voicemails/<your-audio-file>.m4a" \
+  http://localhost:3000/api/transcriptions
+```
+
+The response contract is documented in `contracts/transcription_response.example.json`.
+
 ## Getting Started
 
 First, run the development server:
