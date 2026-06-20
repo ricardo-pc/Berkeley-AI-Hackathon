@@ -40,3 +40,41 @@ curl -X POST \
 ```
 
 The API and CLI return the same JSON contract as `contracts/transcription_response.example.json`.
+
+## Schedule Adjustment Eligibility Agent
+
+`scheduling_eligibility/` checks whether a reschedule request can proceed:
+
+- Calendar conflicts — clinic holidays, provider working hours, and overlapping booked appointments (reads `providers` + `appointments` from Supabase, schema in [docs/database](../../docs/database/README.md)).
+- Repeated-request abuse — flags a patient for a manual call once they've made more than 2 consecutive reschedule requests since their last completed visit.
+
+The conflict/consecutive-request logic is pure Python (`checks.py`, fully unit tested). `service.py` orchestrates the checks against a `ScheduleEligibilityRepo` (Supabase-backed in `repo.py`, fake-able in tests) and calls Claude (`claude_summary.py`, Anthropic API) only to write the plain-English `agent_summary` shown to the CHW.
+
+### Setup
+
+Same venv as above, plus:
+
+```bash
+cd backend/api
+pip install -r requirements.txt
+```
+
+Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_KEY` in `.env`.
+
+### CLI usage
+
+```bash
+cd backend/api
+python3 -m scheduling_eligibility.cli \
+  --patient-id <uuid> --provider-id <uuid> \
+  --start 2026-06-25T09:00:00+00:00 --end 2026-06-25T09:30:00+00:00 \
+  --pretty
+```
+
+### API usage
+
+```bash
+curl -X POST http://localhost:8000/api/schedule-eligibility \
+  -H "Content-Type: application/json" \
+  -d '{"patient_id":"<uuid>","provider_id":"<uuid>","requested_start":"2026-06-25T09:00:00+00:00","requested_end":"2026-06-25T09:30:00+00:00"}'
+```

@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+import pytest
+
+from scheduling_eligibility.errors import ProviderNotFoundError
+from scheduling_eligibility.service import run_schedule_eligibility_check
+
+PROVIDER_AVAILABILITY = {
+    "mon": ["09:00", "17:00"],
+    "tue": ["09:00", "17:00"],
+    "wed": ["09:00", "17:00"],
+    "thu": ["09:00", "17:00"],
+    "fri": ["09:00", "17:00"],
+}
+
+
+class FakeRepo:
+    def __init__(
+        self,
+        provider: dict[str, Any] | None,
+        appointments: list[dict[str, Any]] | None = None,
+        reschedule_tasks: list[dict[str, Any]] | None = None,
+    ):
+        self._provider = provider
+        self._appointments = appointments or []
+        self._reschedule_tasks = reschedule_tasks or []
+
+    def get_provider(self, provider_id: str) -> dict[str, Any]:
+        return self._provider or {}
+
+    def get_scheduled_appointments(self, provider_id: str) -> list[dict[str, Any]]:
+        return self._appointments
+
+    def get_reschedule_tasks_since_last_visit(self, patient_id: str) -> list[dict[str, Any]]:
+        return self._reschedule_tasks
+
+
+def fake_summarize(checks: dict[str, Any]) -> str:
+    return "fake summary"
+
+
+def test_open_slot_is_eligible_with_a_proposed_reschedule_action():
+    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY})
+
+    result = run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        summarize=fake_summarize,
+    )
+
+    assert result["eligible"] is True
+    assert result["status"] == "pending_approval"
+    assert result["flagged_reason"] is None
+    assert result["proposed_action"]["type"] == "reschedule"
+    assert result["agent_checks"]["scheduling_eligibility"]["conflict"] is False
+    assert result["agent_summary"] == "fake summary"
+
+
+def test_conflicting_slot_is_pending_approval_without_a_proposed_action():
+    existing = [
+        {
+            "id": "other",
+            "status": "scheduled",
+            "start_time": "2026-06-24T10:00:00+00:00",
+            "end_time": "2026-06-24T10:30:00+00:00",
+        }
+    ]
+    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY}, appointments=existing)
+
+    result = run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        summarize=fake_summarize,
+    )
+
+    assert result["eligible"] is False
+    assert result["status"] == "pending_approval"
+    assert result["proposed_action"] is None
+    assert result["agent_checks"]["scheduling_eligibility"]["conflict"] is True
+
+
+def test_three_consecutive_reschedules_escalates_for_a_manual_call():
+    repo = FakeRepo(
+        provider={"id": "p1", "availability": PROVIDER_AVAILABILITY},
+        reschedule_tasks=[{"id": "t1"}, {"id": "t2"}],
+    )
+
+    result = run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        summarize=fake_summarize,
+    )
+
+    assert result["eligible"] is False
+    assert result["status"] == "escalated"
+    assert "manual" in result["flagged_reason"] or "call" in result["flagged_reason"]
+    assert result["agent_checks"]["scheduling_eligibility"]["consecutive_reschedule_count"] == 2
+    assert result["proposed_action"] is None
+
+
+def test_missing_provider_raises_a_not_found_error():
+    repo = FakeRepo(provider=None)
+
+    with pytest.raises(ProviderNotFoundError):
+        run_schedule_eligibility_check(
+            patient_id="pat1",
+            provider_id="missing-provider",
+            requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+            requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+            repo=repo,
+            summarize=fake_summarize,
+        )
