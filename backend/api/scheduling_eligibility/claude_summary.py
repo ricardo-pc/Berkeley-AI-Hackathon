@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover - python-dotenv is listed in requirement
     load_dotenv = None
 
 
-CLAUDE_MODEL = "claude-sonnet-4-6"
+CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
 SYSTEM_PROMPT = (
     "You write a one-paragraph plain-English summary for a certified healthcare worker (CHW) "
