@@ -17,6 +17,7 @@ import type { Bucket, Task } from "@/lib/types";
 import { TASK_TYPE_TAG } from "@/lib/types";
 import {
   ageFromDob,
+  approveLabel,
   decisionModeOf,
   describeProposedAction,
   isIffy,
@@ -409,7 +410,7 @@ export default function TaskRow({
                       className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-primary px-4 text-sm font-bold text-on-primary transition-colors duration-200 hover:bg-primary-deep disabled:cursor-wait disabled:opacity-70"
                     >
                       {processing ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                      Approve
+                      {approveLabel(task)}
                     </button>
                     <button
                       type="button"

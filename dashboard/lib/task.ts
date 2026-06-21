@@ -39,6 +39,23 @@ export function decisionModeOf(task: Task): DecisionMode {
   return isActionable(task) ? "approve_reject" : "action_taken";
 }
 
+/** Approve button copy — names the concrete action it triggers (refill/rebook/relay)
+ *  so the CHW isn't clicking a blind "Approve" before reading the detail panel. */
+const APPROVE_LABEL: Record<Task["task_type"], string> = {
+  prescription_refill: "Approve & refill",
+  reschedule: "Approve & rebook",
+  message_relay: "Approve & relay",
+  escalate: "Approve",
+};
+
+export function approveLabel(task: Task): string {
+  // The eligibility gate failed without proposing a concrete refill/reschedule
+  // (proposed_action.type === "escalate") — approving just closes the task out,
+  // it doesn't run the agent's normal action, so don't promise one.
+  if (task.proposed_action?.type === "escalate") return "Mark handled";
+  return APPROVE_LABEL[task.task_type] ?? "Approve";
+}
+
 /** Queue ordering: emergencies first, then iffy (needs judgment), then other
  *  manual escalations, then clean approvals — oldest first within a tier. */
 export function reviewPriority(task: Task): number {
