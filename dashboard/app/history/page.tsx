@@ -1,6 +1,6 @@
 import AppShell from "@/components/AppShell";
 import HistoryTable from "@/components/HistoryTable";
-import { getTasks } from "@/lib/tasks-repo";
+import { fetchTasks } from "@/lib/backend";
 import { SEED_TASKS } from "@/lib/mockData";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export default async function HistoryPage() {
   let tasks = SEED_TASKS;
   let usingFixtures = true;
   try {
-    const live = await getTasks();
+    const live = await fetchTasks();
     if (live.length > 0) {
       tasks = live;
       usingFixtures = false;

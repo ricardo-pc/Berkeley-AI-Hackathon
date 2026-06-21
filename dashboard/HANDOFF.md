@@ -4,17 +4,20 @@ _Last updated: 2026-06-21_
 
 The **CHW approval dashboard** (`dashboard/`): a certified health worker reviews voicemail-derived
 tasks and approves / rejects / handles them in one place. It consumes the orchestrator's eligibility
-output from the Supabase `tasks` table. (Separate from `berkapp/`, the EHR mock.)
+output (the Supabase `tasks` table) **via the FastAPI backend** — the dashboard itself has no DB access.
+(Separate from `berkapp/`, the EHR mock.)
 
 ---
 
 ## TL;DR — where we are
 
-- ✅ **Dashboard is fully built** (queue + history), live-wired to Supabase, themed to match berkapp. Builds clean.
-- ✅ **Approve actually executes** locally: refill/reschedule call the real FastAPI executors → write `prescriptions`/`appointments` + send a patient confirmation SMS.
-- ✅ **Orchestrator routing verified** end-to-end (all 10 demo scenarios route to the right path).
-- ⏳ **Decided next step: "Option B"** — move *all* DB access into the FastAPI backend so the dashboard holds no Supabase key. **Most of the backend endpoints this needs are NOT built yet** (see [Backend gap](#backend-coverage-gap)).
-- ⏳ **Backend is not deployed** (only the two Vercel frontends are). Deploying it is now a prerequisite.
+- ✅ **Dashboard fully built** (queue + history), themed to match berkapp. Builds clean (tsc/lint/build).
+- ✅ **Option B done:** the FastAPI backend owns **all** DB reads/writes + the **single decision executor**. The dashboard talks only to the backend over HTTP and holds **no Supabase key**.
+- ✅ **Approve executes for real** (locally): refill/reschedule write `prescriptions`/`appointments`, relay writes `messages` (→ shows in berkapp encounters), all send patient SMS (when `TEXTBELT_API_KEY` is set).
+- ✅ **Reject auto-texts the patient** a denial notice, with a manual-follow-up fallback if it can't send.
+- ✅ **Idempotent** (re-approving a `complete` task no-ops) + a **Reset button** restores the demo baseline.
+- ✅ **Orchestrator routing verified** (all demo scenarios route to the right path).
+- ⏳ **Not deployed yet:** the FastAPI backend has no public URL. Deploying it + setting `BACKEND_API_URL` on Vercel is the remaining step (see [Deployment](#deployment)).
 
 ---
 
@@ -24,19 +27,23 @@ output from the Supabase `tasks` table. (Separate from `berkapp/`, the EHR mock.
 voicemail → Deepgram STT → intake extraction → ORCHESTRATOR (eligibility gates)
         → writes a row to Supabase `tasks`
               (task_type, status, agent_summary, agent_checks, proposed_action, flagged_reason)
-        → DASHBOARD reads `tasks` (+ joins patients & voicemails) → CHW decision
-        → EXECUTOR (FastAPI) writes prescriptions/appointments/messages + confirmation SMS
+        → FastAPI backend  GET /api/tasks         (reads + joins patients/voicemails)
+        → DASHBOARD renders the queue → CHW decision
+        → FastAPI backend  PATCH /api/tasks/{id}/decision   (the ONE executor)
+              approve → prescriptions / appointments / messages + confirmation SMS
+              reject  → status=rejected + denial SMS
         → reflects back in berkapp (chart / encounters inbox)
 ```
 
-The orchestrator **produces**; the dashboard **consumes** — decoupled through the `tasks` table.
-Our `Task` type mirrors the DB columns 1:1 so there's no translation layer.
+**The dashboard makes zero direct DB calls.** Everything goes through the backend, which is the only
+holder of the Supabase service-role key. The orchestrator **produces** tasks; the dashboard **consumes**
+them through the backend — decoupled via the `tasks` table.
 
 ---
 
 ## Data model (the contract)
 
-`Task` (see `dashboard/lib/types.ts`) — field names match the DB columns exactly:
+`Task` (`dashboard/lib/types.ts`) — field names match the DB columns 1:1:
 
 | field | notes |
 |---|---|
@@ -46,114 +53,64 @@ Our `Task` type mirrors the DB columns 1:1 so there's no translation layer.
 | `status` | `pending_approval` \| `escalated` \| `rejected` \| `complete` |
 | `agent_summary`, `agent_checks` (nested JSON), `proposed_action` (JSON), `flagged_reason` | from the orchestrator |
 | `approved_at`, `approved_by` | pre-existing audit columns |
-| `chw_note`, `reviewed_at`, `rejected_at` | **added by migration `0001`** (see below) |
-| `transcript` | joined from `voicemails`; `patient_dob`/`patient_phone` joined from `patients` |
+| `chw_note`, `reviewed_at`, `rejected_at` | **added by migration `0001` (already run)** |
+| `transcript` (from `voicemails`), `patient_dob`/`patient_phone` (from `patients`) | joined |
 
 **Buckets** (derived, `lib/task.ts`): `to_review` (pending_approval/escalated) · `follow_up` (rejected) · `done` (complete).
 **Actionable** = the 3 non-`escalate` types. **Iffy** = actionable + `escalated` (gate failed; CHW can still approve/reject with a note).
 
 ---
 
-## What's built & working
+## Backend — the single surface the dashboard talks to (`backend/api/tasks/`)
 
-**Dashboard (`dashboard/`):** Next.js 16 / React 19 / Tailwind v4 / Geist.
-- `/` — work queue: urgency-ordered **To review** + **Rejected (follow-up)** + **Done**. Two-click review → Approve/Reject; non-actionable → "Action taken"; rejected → "Mark done".
-- `/history` — Excel-style filterable/sortable log of all past decisions.
-- Optimistic decision writes with revert-on-error + Undo. Fixtures fallback + "Demo data" banner when the DB is unreachable.
-- Theme matched to berkapp (slate + sky + teal header).
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/tasks` | Enriched task list (joins patients + voicemails) → exact `Task` shape. |
+| `PATCH /api/tasks/{id}/decision` | **The one executor.** Body `{decision, note?, status?, chw?}`. |
+| `POST /api/demo/baseline` | Snapshot current demo state (tasks + side-effect row ids). |
+| `POST /api/demo/reset` | Restore to the saved baseline; deletes prescription/appointment/message rows created since. |
 
-**Backend executors that exist (`backend/api/`):**
-- `POST /api/prescriptions` → inserts a `prescriptions` row, marks task `complete`, sends confirmation SMS.
-- `POST /api/appointments` → books the appointment, marks task `complete`, sends confirmation SMS.
+`PATCH …/decision` dispatches internally (plain function calls, reusing the existing services):
+- **approve** → `prescription_refill`→`fill_prescription`, `reschedule`→`book_appointment`, `message_relay`→insert `messages`, escalate/iffy-override→status-only; then writes audit fields + chains the confirmation SMS. **Idempotent** (no-op if already `complete`).
+- **reject** → `status=rejected` + audit, then auto denial SMS with a manual-follow-up notice if it fails.
+- **action_taken / mark_done / reopen** → status writes (`reopen` clears audit; used by Undo).
 
-**Verified:**
-- Orchestrator routes all 10 demo intakes correctly (clean → `pending_approval` w/ executable action; every failure → `escalated` w/ a specific reason; emergency → safety bypass).
-- Live reads work; the live `tasks` rows match the orchestrator's output.
-- A real Approve through the dashboard inserted a prescription + flipped status + reported the confirmation result.
-- Reject + note persists to the DB (read back directly from Supabase).
+Files: `tasks/repo.py` (Supabase access), `tasks/service.py` (executor + row→Task mapping), `tasks/demo.py` (baseline/reset), `tasks/router.py` (FastAPI routes). Registered via one line in `backend/api/main.py`. The older `POST /api/prescriptions` + `/api/appointments` still exist (untouched); the decision endpoint reuses their service functions.
 
 ---
 
-## Where the dashboard touches the DB right now
+## Dashboard side (Option B cutover)
 
-All server-side, service-role key, funneled through **two files**:
-- `lib/supabase.ts` — the `supabaseAdmin()` client (the only connection).
-- `lib/tasks-repo.ts` — all queries: `getTasks()`, `getTask()`, `getPatientIdentity()` (reads) and **`patchTask()` (the only write)**.
-
-Callers: `app/page.tsx`, `app/history/page.tsx`, `app/api/tasks/route.ts` (reads); `app/api/tasks/[id]/route.ts` (the decision PATCH → `patchTask`); `lib/executor.ts` (calls the FastAPI executors for approve).
-
-> ⚠️ The dashboard currently holds the **service-role key** (bypasses RLS). Option B removes it.
-
----
-
-## Decided plan — "Option B": backend owns all DB access
-
-**End state:** the FastAPI backend owns every read and write; the dashboard talks only to the backend over HTTP (no Supabase client, no key).
-
-### New backend endpoints to build
-1. **`GET /api/tasks`** — enriched task list. Port of the dashboard's `getTasks()`/`mapRow()` join logic into Python; must emit the `Task` shape above (already snake_case).
-2. **`PATCH /api/tasks/{id}/decision`** — body `{decision, note?, status?, chw?}`. Absorbs the dashboard's `patchFor()` + `patchTask()` + `executor.ts`. Handles:
-   - `approve` → dispatch on `proposed_action.type`: refill→`fill_prescription`, reschedule→`book_appointment`, relay→**new relay executor (a)**, escalate-stub→status-only; then write audit fields + confirmation SMS.
-   - `reject` → `status=rejected` + audit, then **auto denial SMS (b)** with a manual-follow-up notice if it fails.
-   - `action_taken` / `mark_done` / `reopen` → status writes (+ clear audit on reopen).
-   - **Idempotency (c):** no-op if already `complete`.
-   - Returns `{task, notice}` (re-read + mapped), same shape the UI already consumes.
-
-### Dashboard side (after the endpoints exist)
-- `app/page.tsx` + `app/history/page.tsx` → `fetch(${BACKEND_API_URL}/api/tasks)` server-side.
-- `app/api/tasks/[id]/route.ts` → thin **proxy** to the backend decision endpoint (browser still calls same-origin `/api/tasks/[id]`, so client code is unchanged; no CORS).
-- **Delete** `lib/supabase.ts`, `lib/tasks-repo.ts`, `lib/executor.ts`; remove `@supabase/supabase-js` + `SUPABASE_*` keys. `lib/task.ts` presenters stay.
-
-### Sequencing (no broken intermediate state)
-1. Backend `GET /api/tasks` — curl-verify shape. 2. Backend `PATCH …/decision` (+ a/b/c). 3. Point dashboard at backend; full local test. 4. Delete dashboard DB layer + key. 5. Update env examples / README.
-
----
-
-## Backend coverage gap
-
-What Option B needs vs. what exists today:
-
-| Scenario | Built? | Today lives in |
-|---|---|---|
-| `GET /api/tasks` (enriched read) | ❌ | dashboard `getTasks()` |
-| Approve → refill / reschedule | ✅ | `/api/prescriptions`, `/api/appointments` |
-| Approve → **message relay** (insert `messages`) — **(a)** | ❌ | nothing (`/api/message-relay` is only the classifier, not delivery) |
-| **Reject** + denial SMS — **(b)** | ❌ | dashboard `patchTask`; `send_denial_notice()` exists but has no endpoint |
-| `action_taken` / `mark_done` / `reopen` | ❌ | dashboard `patchTask` |
-| Audit writes (`approved_by`/`chw_note`/`reviewed_at`/`rejected_at`) | ❌ | dashboard (executors only write `{status, approved_at}`) |
-| **Idempotency** guard — **(c)** | ❌ | nothing (caused duplicate `prescriptions` rows in testing) |
-
-**2 of ~8 scenarios built.** Most missing ones are trivial ports of the dashboard's `patchFor()` logic (~30 lines). Non-trivial: `GET /api/tasks` (join port), (a) relay executor (insert one `messages` row → shows up in berkapp encounters), (b) denial SMS endpoint, (c) idempotency check.
-
----
-
-## The `messages` table (for relay executor / piece a)
-
-Already exists and is **live** (berkapp's encounters page reads it — not hardcoded):
-`id, task_id, patient_id, provider_id, message_body, delivered, created_at`.
-The relay executor just inserts a row (`message_body` = draft, `delivered=true`) + marks the task complete → it appears in the doctor's inbox in berkapp automatically. Handle the `provider_id == null` case (patient with no preferred provider).
+- `lib/backend.ts` — **the only** server-side data access: `fetchTasks()`, `postDecision()`, `resetDemo()` (reads `BACKEND_API_URL`).
+- `app/page.tsx` / `app/history/page.tsx` → `fetchTasks()`. Fixtures fallback + "Demo data" banner when the backend is unreachable.
+- `app/api/tasks/route.ts`, `app/api/tasks/[id]/route.ts`, `app/api/demo/reset/route.ts` → **thin proxies** to the backend (browser still calls same-origin routes → no CORS).
+- `components/ResetDemoButton.tsx` — in the queue header; POST `/api/demo/reset` → `router.refresh()`.
+- `lib/useLiveTasks.ts` — polls `/api/tasks` so the queue auto-refreshes.
+- **Deleted:** `lib/supabase.ts`, `lib/tasks-repo.ts`, `lib/executor.ts`. **Removed** `@supabase/supabase-js`. The dashboard env needs only `BACKEND_API_URL`.
 
 ---
 
 ## Run it locally
 
-**Backend (FastAPI):**
+**1. Backend (FastAPI) — must be running first:**
 ```bash
 cd backend/api
 ./.venv/bin/pip install -r requirements.txt        # first time
 ./.venv/bin/uvicorn main:app --port 8000
 ```
-Needs `backend/api/.env` (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, DEEPGRAM_API_KEY, ANTHROPIC_API_KEY).
-**`TEXTBELT_API_KEY` is missing → confirmation/denial SMS won't actually send** (returns a reason; pipeline still works).
+Needs `backend/api/.env`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DEEPGRAM_API_KEY`, `ANTHROPIC_API_KEY`,
+and **`TEXTBELT_API_KEY`** (without it, confirmation/denial SMS won't actually send — returns a reason; pipeline still works).
 
-**Dashboard:**
+**2. Dashboard:**
 ```bash
 cd dashboard
 npm install
 npm run dev                                         # http://localhost:3000
 ```
-`dashboard/.env.local` needs: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BACKEND_API_URL=http://localhost:8000`.
-(After Option B, the dashboard will need only `BACKEND_API_URL`.)
+`dashboard/.env.local` needs only: `BACKEND_API_URL=http://localhost:8000`.
+
+**Demo reset:** click "Reset demo" in the queue header (or `POST /api/demo/reset`). To change the baseline,
+get the demo into the desired state then `POST /api/demo/baseline`. Current baseline: 4 pending + 2 escalated.
 
 **Orchestrator routing check (offline, no DB/paid APIs):**
 ```bash
@@ -163,36 +120,36 @@ PYTHONPATH="$(pwd):$(pwd)/orchestrator:$(pwd)/api" api/.venv/bin/python -m orche
 
 ---
 
-## Database migration (ALREADY RUN ✅)
+## Deployment
 
-`dashboard/db/migrations/0001_chw_decision_columns.sql` added `chw_note`, `reviewed_at`, `rejected_at`
-to `tasks`. Run once via **Supabase dashboard → SQL Editor**. Idempotent. (DDL can't be run via the
-service key, only in the SQL editor.) Already applied to the live project.
+| Piece | How | Status | What it needs |
+|---|---|---|---|
+| `berkapp` (EHR) | Vercel | ✅ live: `berkapp-three.vercel.app` | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` |
+| `dashboard` (this) | Vercel | ✅ live: `dashboard-azure-six-79.vercel.app` | **`BACKEND_API_URL`** (now its only required env) |
+| `backend/api` (FastAPI) | Procfile (`uvicorn main:app --port $PORT`) | ❌ **NOT deployed** | `SUPABASE_*`, `TEXTBELT_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPGRAM_API_KEY` |
+
+### What can be deployed right now
+- **berkapp + dashboard** are already deployable on Vercel and are live.
+- **backend/api is deploy-ready** (has a Procfile; runs cleanly locally) but **isn't hosted yet** — it just needs a host (Railway / Render / Fly) and its env vars.
+
+### Steps to a fully working live demo
+1. **Deploy `backend/api`** to Railway/Render → get a public URL (e.g. `https://clinic-api.up.railway.app`). Set its env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `DEEPGRAM_API_KEY`, `TEXTBELT_API_KEY`.
+2. **Set `BACKEND_API_URL`** on the Vercel **dashboard** project → that URL. Redeploy.
+3. Done — server-to-server (Vercel → FastAPI), so no CORS to configure.
+
+### ⚠️ Hard dependency
+Since Option B, the **deployed dashboard depends on the deployed backend** for *all* data (reads too).
+If `BACKEND_API_URL` is unset/unreachable, the dashboard renders the fixtures (with the "Demo data" banner)
+rather than live tasks. So **the backend must be deployed for the live dashboard to show real data.**
 
 ---
 
-## Deployment status
+## Open items
 
-| Piece | Where | Status |
-|---|---|---|
-| `berkapp` (EHR) | Vercel | live: `berkapp-three.vercel.app` |
-| `dashboard` (ours) | Vercel | live: `dashboard-azure-six-79.vercel.app` |
-| `backend/api` (FastAPI) | Procfile (`uvicorn main:app --port $PORT`) | **NOT deployed** — needs Railway/Render |
-
-**To deploy for real:**
-1. Deploy `backend/api` → get a public URL.
-2. Set `BACKEND_API_URL` on Vercel (dashboard project) → that URL. Set `SUPABASE_*` + `TEXTBELT_API_KEY` + `ANTHROPIC_API_KEY` etc. on the backend host.
-3. **After Option B, the deployed dashboard hard-depends on the deployed backend** (reads go through it too). Until the backend is deployed, the dashboard falls back to fixtures.
-
----
-
-## Open items / decisions
-
-- **Build the Option B backend endpoints** (`GET /api/tasks`, `PATCH /api/tasks/{id}/decision`) + pieces **(a) relay executor, (b) reject denial SMS, (c) idempotency**. This is the prerequisite for the whole migration. (These touch `backend/api/` — coordinate so we don't collide.)
-- **Multi-request voicemails**: a single voicemail asking for two things (e.g. refill + relay) currently yields only **one** task. Orchestrator limitation — flag to its owners.
-- **Set `TEXTBELT_API_KEY`** on the backend so confirmation/denial SMS actually send.
-- **Duplicate prescriptions** exist in the demo DB from idempotency-less test approves — clean up once (c) lands.
-- Keep the **fixtures fallback** (demo data when backend is down)? Recommended: yes.
+- **Set `TEXTBELT_API_KEY`** on the backend so confirmation/denial SMS actually send (currently they no-op with a reason).
+- **Deploy `backend/api`** + set `BACKEND_API_URL` in Vercel (above).
+- **Stray task:** there are two "Maria Gonzalez" refills in the demo data (`f1b2c3d4-0001…` + `5dd6b103-aac6…`) — likely a leftover test task; confirm/remove for a clean demo.
+- **Multi-request voicemails:** a single voicemail asking for two things (e.g. refill + relay) currently yields only **one** task — orchestrator limitation, flag to its owners.
 
 ---
 
@@ -200,19 +157,21 @@ service key, only in the SQL editor.) Already applied to the live project.
 
 ```
 dashboard/
-  app/page.tsx, app/history/page.tsx        # server pages (read tasks)
-  app/api/tasks/route.ts                    # GET tasks
-  app/api/tasks/[id]/route.ts               # PATCH decision (approve/reject/action_taken/mark_done/reopen)
-  lib/supabase.ts                           # service-role client      ⟵ DELETE in Option B
-  lib/tasks-repo.ts                         # getTasks/getTask/patchTask (DB)  ⟵ MOVE to backend
-  lib/executor.ts                           # calls FastAPI executors  ⟵ MOVE into decision endpoint
-  lib/types.ts, lib/task.ts, lib/status.ts  # Task shape + derivations/presenters (stay)
-  components/                               # AppShell, DashboardClient, TaskSection, TaskRow, HistoryTable, ...
-  db/migrations/0001_chw_decision_columns.sql
+  app/page.tsx, app/history/page.tsx        # server pages → fetchTasks()
+  app/api/tasks/route.ts                    # GET proxy
+  app/api/tasks/[id]/route.ts               # PATCH decision proxy
+  app/api/demo/reset/route.ts               # reset proxy
+  lib/backend.ts                            # the only data access (→ BACKEND_API_URL)
+  lib/types.ts, lib/task.ts, lib/status.ts  # Task shape + derivations/presenters
+  lib/useLiveTasks.ts                        # polling hook
+  components/                               # AppShell, Sidebar, DashboardClient, TaskSection,
+                                            #   TaskRow, HistoryTable, ResetDemoButton, Toast, ...
+  db/migrations/0001_chw_decision_columns.sql   # (already run)
 
 backend/api/
-  main.py                                   # routes (executors live here)
-  prescription_fulfillment/, scheduler/     # the two built executors
+  tasks/                                    # repo.py, service.py (executor+mapper), demo.py, router.py
+  main.py                                   # registers tasks.router; legacy executor endpoints
+  prescription_fulfillment/, scheduler/     # the two executors the decision endpoint reuses
   confirmation/                             # send_confirmation + send_denial_notice (SMS)
 backend/orchestrator/
   main_loop.py                              # demo routing harness; canonical task shape

@@ -1,24 +1,24 @@
 {
   "tasks": {
     "5dd6b103-aac6-43b0-bcbf-349eb8a52484": {
-      "status": "complete",
-      "approved_at": "2026-06-21T16:15:44.982912+00:00",
-      "approved_by": "Riya Shah",
+      "status": "pending_approval",
+      "approved_at": null,
+      "approved_by": null,
       "rejected_at": null,
-      "reviewed_at": "2026-06-21T16:15:44.724+00:00",
-      "chw_note": "smoke test approval"
+      "reviewed_at": null,
+      "chw_note": null
     },
-    "f1b2c3d4-0005-0005-0005-000000000005": {
-      "status": "complete",
-      "approved_at": "2026-06-21T16:27:21.72+00:00",
-      "approved_by": "Riya Shah",
+    "f1b2c3d4-0003-0003-0003-000000000003": {
+      "status": "escalated",
+      "approved_at": null,
+      "approved_by": null,
       "rejected_at": null,
-      "reviewed_at": "2026-06-21T16:27:21.72+00:00",
-      "chw_note": "test relay approval"
+      "reviewed_at": null,
+      "chw_note": null
     },
     "f1b2c3d4-0004-0004-0004-000000000004": {
-      "status": "complete",
-      "approved_at": "2026-06-21T04:12:34.058993+00:00",
+      "status": "pending_approval",
+      "approved_at": null,
       "approved_by": null,
       "rejected_at": null,
       "reviewed_at": null,
@@ -32,20 +32,20 @@
       "reviewed_at": null,
       "chw_note": null
     },
-    "f1b2c3d4-0003-0003-0003-000000000003": {
-      "status": "complete",
-      "approved_at": "2026-06-21T16:29:02.701+00:00",
-      "approved_by": "Riya Shah",
-      "rejected_at": null,
-      "reviewed_at": "2026-06-21T16:29:02.701+00:00",
-      "chw_note": "CHW override - approved despite iffy gate"
-    },
     "f1b2c3d4-0002-0002-0002-000000000002": {
-      "status": "complete",
-      "approved_at": "2026-06-21T16:30:44.93+00:00",
-      "approved_by": "Riya Shah",
+      "status": "escalated",
+      "approved_at": null,
+      "approved_by": null,
       "rejected_at": null,
-      "reviewed_at": "2026-06-21T16:30:44.93+00:00",
+      "reviewed_at": null,
+      "chw_note": null
+    },
+    "f1b2c3d4-0005-0005-0005-000000000005": {
+      "status": "pending_approval",
+      "approved_at": null,
+      "approved_by": null,
+      "rejected_at": null,
+      "reviewed_at": null,
       "chw_note": null
     }
   },

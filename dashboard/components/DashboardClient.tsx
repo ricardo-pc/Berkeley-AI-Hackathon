@@ -8,6 +8,7 @@ import AppShell from "./AppShell";
 import DigestStrip from "./DigestStrip";
 import TaskSection from "./TaskSection";
 import Toast from "./Toast";
+import ResetDemoButton from "./ResetDemoButton";
 
 const TODAY = new Date("2026-06-21").toLocaleDateString("en-US", {
   weekday: "long",
@@ -173,9 +174,12 @@ export default function DashboardClient({ initialTasks, usingFixtures }: Dashboa
       title="Work queue"
       subtitle={`${toReview.length} ${toReview.length === 1 ? "patient" : "patients"} awaiting review`}
       headerAside={
-        <span className="inline-flex items-center self-start rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-semibold text-muted-foreground sm:self-auto">
-          {TODAY}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+            {TODAY}
+          </span>
+          {!usingFixtures && <ResetDemoButton />}
+        </div>
       }
     >
       <DigestStrip tasks={tasks} />

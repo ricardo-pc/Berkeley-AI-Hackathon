@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { getTasks } from "@/lib/tasks-repo";
+import { fetchTasks } from "@/lib/backend";
 
-// GET /api/tasks — all tasks, enriched + mapped. Used for client-side refetch.
+// GET /api/tasks — thin proxy to the backend's enriched task list.
 export async function GET() {
   try {
-    const tasks = await getTasks();
+    const tasks = await fetchTasks();
     return NextResponse.json(tasks);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
