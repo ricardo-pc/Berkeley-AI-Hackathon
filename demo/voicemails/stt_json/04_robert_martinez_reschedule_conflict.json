@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_robert_reschedule_conflict",
+    "duration": 12.1,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "This is Robert Martinez, January 30, 1952. I need to move my appointment to June 24th around 3 in the afternoon with Dr. Lee. My insurance is United Healthcare and my number is 415-555-0174.",
+            "confidence": 0.977,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 6.4,
+        "confidence": 0.979,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "This is Robert Martinez, January 30, 1952. I need to move my appointment to June 24th around 3 in the afternoon with Dr. Lee.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 6.5,
+        "end": 12.1,
+        "confidence": 0.975,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "My insurance is United Healthcare and my number is 415-555-0174.",
+        "words": []
+      }
+    ]
+  }
+}
+

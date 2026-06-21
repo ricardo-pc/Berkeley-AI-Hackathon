@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_linda_reschedule_invalid_insurance",
+    "duration": 12.6,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, my name is Linda Chen, date of birth November 5, 1990. I have Kaiser Permanente. I would like to reschedule my appointment to June 24th at 3 PM if possible. My number is 628-555-0193.",
+            "confidence": 0.968,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 5.7,
+        "confidence": 0.971,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hi, my name is Linda Chen, date of birth November 5, 1990. I have Kaiser Permanente.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 5.8,
+        "end": 12.6,
+        "confidence": 0.965,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I would like to reschedule my appointment to June 24th at 3 PM if possible. My number is 628-555-0193.",
+        "words": []
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_missing_dob_insurance_reschedule",
+    "duration": 10.4,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, this is Sam. I need to move my appointment, preferably sometime next Tuesday morning. I do not have my insurance card with me. Please call me at 510-555-0120.",
+            "confidence": 0.947,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 5.9,
+        "confidence": 0.951,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hi, this is Sam. I need to move my appointment, preferably sometime next Tuesday morning.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 6.0,
+        "end": 10.4,
+        "confidence": 0.943,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I do not have my insurance card with me. Please call me at 510-555-0120.",
+        "words": []
+      }
+    ]
+  }
+}
+

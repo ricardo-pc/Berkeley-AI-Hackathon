@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_james_refill_old_visit",
+    "duration": 11.9,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hey, this is James Okafor. My birthday is July 24, 1965. I need a refill on my Metformin 500 milligrams, twice daily with meals. I have Aetna HMO insurance. You can reach me at 510-555-0182.",
+            "confidence": 0.974,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 6.2,
+        "confidence": 0.976,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hey, this is James Okafor. My birthday is July 24, 1965. I need a refill on my Metformin 500 milligrams, twice daily with meals.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 6.3,
+        "end": 11.9,
+        "confidence": 0.972,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I have Aetna HMO insurance. You can reach me at 510-555-0182.",
+        "words": []
+      }
+    ]
+  }
+}
+

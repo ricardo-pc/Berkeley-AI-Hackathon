@@ -1,5 +1,27 @@
-# Intake Agent (Robert)
+# Intake Agent
 
-Receives inbound call simulation (or text input for demo). Extracts: patient name, reason for visit, preferred times, insurance, urgency signal.
+Receives Deepgram/STT JSON and extracts strict intake fields with Claude:
 
-Voice-to-text sponsor: TBD
+- first name
+- last name
+- date of birth
+- phone number
+- insurance plan
+- nested request details:
+  - type
+  - details
+  - orders
+  - preferred times
+  - urgency signal
+
+The field names line up with the database reference in `docs/database/README.md`: `first_name`, `last_name`, `date_of_birth`, `phone_number`, and `insurance_plan` map to patient identity/contact information; `request.type` and `transcript` map to the voicemail request.
+
+## CLI
+
+Run from the repo root with a saved Deepgram/normalized STT JSON file:
+
+```bash
+python3 -m agents.intake.cli path/to/stt-output.json --pretty
+```
+
+Requires `ANTHROPIC_API_KEY` in the shell or in an `.env` file.

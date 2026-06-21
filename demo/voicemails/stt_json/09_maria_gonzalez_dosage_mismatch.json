@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_maria_dosage_mismatch",
+    "duration": 13.6,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I need a refill for Lisinopril 20 milligrams twice daily. I have Blue Cross PPO insurance. My callback number is 415-555-0101.",
+            "confidence": 0.969,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 6.9,
+        "confidence": 0.972,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I need a refill for Lisinopril 20 milligrams twice daily.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 7.0,
+        "end": 13.6,
+        "confidence": 0.966,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I have Blue Cross PPO insurance. My callback number is 415-555-0101.",
+        "words": []
+      }
+    ]
+  }
+}
+

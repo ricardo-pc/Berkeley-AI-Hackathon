@@ -6,5 +6,4 @@ __pycache__/
 .venv/
 venv/
 __pycache__/
-__init__.py
 .DS_Store

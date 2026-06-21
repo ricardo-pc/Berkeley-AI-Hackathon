@@ -19,12 +19,18 @@ Last updated: 2026-06-20
   - Claude (Anthropic API) used only to generate the plain-English `agent_summary` for the CHW (`claude_summary.py`) — Claude sponsor track.
   - 14 regression tests added (calendar conflict, consecutive-reschedule threshold, service orchestration, missing provider, missing Supabase config, missing Anthropic key, Claude response parsing).
 - Deepgram speech-to-text API ported into the Next.js app at `berkapp/app/api/transcriptions/route.ts`.
+- Intake Agent implemented in `agents/intake`:
+  - Reads Deepgram/normalized STT JSON and extracts patient/request fields with Claude.
+  - Request-related fields live under nested `request` with `type`, `details`, `orders`, `preferred_times`, and `urgency_signal`.
+  - CLI `python3 -m agents.intake.cli <stt-json-file> --pretty`.
+  - Tests cover transcript parsing, strict Claude JSON extraction, missing Anthropic key, invalid Claude JSON, service orchestration, and CLI output.
 
 ## In progress
 - Idea/scope still being finalized (project name, SMS sponsor, calendar provider for the Scheduling action agent, whether triage agent stays in scope).
 - Frontend upload/recording UI is not created yet.
 - Next.js app integration is not wired to the schedule-eligibility service yet.
 - Schedule eligibility agent has not been run against the live Supabase project yet — needs `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/`ANTHROPIC_API_KEY` filled into `backend/api/.env`.
+- Intake agent has not been run against the live Anthropic API yet — needs `ANTHROPIC_API_KEY` configured.
 
 ## Blockers
 - SMS sponsor TBD.
@@ -37,4 +43,5 @@ Last updated: 2026-06-20
 - Build the Eligibility Agent (insurance acceptance / missing-info checklist).
 - Run the CLI against demo voicemail audio once `DEEPGRAM_API_KEY` is configured.
 - Build a frontend upload/recording UI that calls Next.js `POST /api/transcriptions`.
+- Feed saved STT JSON into `agents.intake.cli` once a real demo transcription is generated.
 - Pick sponsor/tool for confirmation (SMS).

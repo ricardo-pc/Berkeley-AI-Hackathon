@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_emergency_symptoms_escalation",
+    "duration": 12.9,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "This is David Nguyen, born February 14, 1960. I have sharp chest pain and trouble breathing. I am not sure what to do. My insurance is Blue Cross PPO and my phone number is 415-555-0199.",
+            "confidence": 0.964,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 6.8,
+        "confidence": 0.966,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "This is David Nguyen, born February 14, 1960. I have sharp chest pain and trouble breathing.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 6.9,
+        "end": 12.9,
+        "confidence": 0.962,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I am not sure what to do. My insurance is Blue Cross PPO and my phone number is 415-555-0199.",
+        "words": []
+      }
+    ]
+  }
+}
+

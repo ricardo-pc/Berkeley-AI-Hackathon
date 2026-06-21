@@ -1,0 +1,17 @@
+{
+  "first_name": "Maria",
+  "last_name": "Gonzalez",
+  "date_of_birth": "1978-03-12",
+  "phone_number": "415-555-0101",
+  "insurance_plan": "Blue Cross PPO",
+  "request": {
+    "type": "refill",
+    "details": "Patient is requesting a refill of Lisinopril 10mg and asks for a callback.",
+    "orders": [
+      "Lisinopril 10mg"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "routine"
+  },
+  "missing_fields": []
+}

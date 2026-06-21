@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_priya_message_relay_adverse_reaction",
+    "duration": 16.5,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, this is Priya Sharma, September 18, 1988. I have Blue Cross PPO. I just wanted to let Dr. Lee know that I have been feeling really dizzy and nauseous since I started the Sertraline three days ago. Please let her know. My number is 510-555-0165.",
+            "confidence": 0.972,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 5.5,
+        "confidence": 0.976,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hi, this is Priya Sharma, September 18, 1988. I have Blue Cross PPO.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 5.6,
+        "end": 16.5,
+        "confidence": 0.968,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I just wanted to let Dr. Lee know that I have been feeling really dizzy and nauseous since I started the Sertraline three days ago. Please let her know. My number is 510-555-0165.",
+        "words": []
+      }
+    ]
+  }
+}
+

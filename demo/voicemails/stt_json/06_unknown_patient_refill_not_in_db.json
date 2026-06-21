@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_unknown_patient_refill",
+    "duration": 13.2,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hello, my name is Alan Brooks, date of birth April 2, 1971. I am calling for a refill of Losartan 50 milligrams. I think my insurance is Cigna PPO. Please call me back at 415-555-0144.",
+            "confidence": 0.956,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 7.0,
+        "confidence": 0.958,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hello, my name is Alan Brooks, date of birth April 2, 1971. I am calling for a refill of Losartan 50 milligrams.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 7.1,
+        "end": 13.2,
+        "confidence": 0.954,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I think my insurance is Cigna PPO. Please call me back at 415-555-0144.",
+        "words": []
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_maria_refill_valid",
+    "duration": 14.8,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I am calling to request a refill for my Lisinopril 10 milligrams, once daily with food. My insurance is Blue Cross PPO and my number is 415-555-0101. Thank you.",
+            "confidence": 0.981,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 7.4,
+        "confidence": 0.983,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I am calling to request a refill for my Lisinopril 10 milligrams, once daily with food.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 7.5,
+        "end": 14.8,
+        "confidence": 0.979,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "My insurance is Blue Cross PPO and my number is 415-555-0101. Thank you.",
+        "words": []
+      }
+    ]
+  }
+}
+
