@@ -18,8 +18,6 @@ ORCHESTRATOR_ROOT = API_ROOT.parent / "orchestrator"
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(ORCHESTRATOR_ROOT))
 
-from backend.orchestrator.main import app as orchestrator_app  # noqa: E402
-
 
 ORCHESTRATOR_BASE_URL = os.getenv("ORCHESTRATOR_BASE_URL")
 
@@ -113,6 +111,8 @@ async def _post_to_orchestrator(path: str, payload: dict[str, Any]) -> httpx.Res
     if ORCHESTRATOR_BASE_URL:
         async with httpx.AsyncClient(base_url=ORCHESTRATOR_BASE_URL, timeout=90.0) as client:
             return await client.post(path, json=payload)
+
+    from backend.orchestrator.main import app as orchestrator_app  # noqa: E402
 
     transport = httpx.ASGITransport(app=orchestrator_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://orchestrator") as client:
