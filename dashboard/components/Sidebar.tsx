@@ -22,7 +22,7 @@ export default function Sidebar({ chwName, active, pendingCount }: SidebarProps)
           <Stethoscope className="size-5" />
         </span>
         <div className="leading-tight">
-          <p className="text-sm font-extrabold tracking-tight text-navy">Triage Desk</p>
+          <p className="text-sm font-extrabold tracking-tight text-navy">Otomedi</p>
           <p className="text-xs text-muted-foreground">Front-desk console</p>
         </div>
       </div>

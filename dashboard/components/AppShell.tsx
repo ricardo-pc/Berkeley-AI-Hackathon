@@ -35,7 +35,7 @@ export default function AppShell({
             <span className="grid size-8 place-items-center rounded-[var(--radius-sm)] bg-primary text-on-primary" aria-hidden="true">
               <Stethoscope className="size-4" />
             </span>
-            <span className="text-sm font-extrabold text-navy">Triage Desk</span>
+            <span className="text-sm font-extrabold text-navy">Otomedi</span>
           </div>
           <nav className="flex items-center gap-1" aria-label="Primary">
             <Link
