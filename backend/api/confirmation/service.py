@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from .templates import build_confirmation_message
-from .twilio_client import send_sms
+from .textbelt_client import send_sms
 
 
 def send_confirmation(
