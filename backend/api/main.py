@@ -67,6 +67,11 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# CHW dashboard surface: GET /api/tasks, PATCH /api/tasks/{id}/decision, demo reset.
+from tasks.router import router as tasks_router  # noqa: E402
+
+app.include_router(tasks_router)
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:
