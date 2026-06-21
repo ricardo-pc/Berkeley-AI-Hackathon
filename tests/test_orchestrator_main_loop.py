@@ -60,7 +60,11 @@ def test_robert_conflict_gets_alternative_slot():
     )
 
     assert result["agent_checks"]["scheduling_eligibility"]["conflict"] is True
-    assert result["proposed_action"]["new_start"] == "2026-06-25T09:00:00+00:00"
+    assert result["agent_checks"]["scheduling_eligibility"]["alternative_slot_found"] is True
+    # The real Scheduling Agent now finds the soonest open slot -- same day,
+    # right after the conflicting appointment ends -- rather than jumping to
+    # the next day.
+    assert result["proposed_action"]["new_start"] == "2026-06-24T15:30:00+00:00"
 
 
 def test_orchestrator_output_is_json_serializable():

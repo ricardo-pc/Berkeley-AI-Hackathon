@@ -93,7 +93,7 @@ def test_eligible_refill_still_surfaces_a_conflict_warning():
 def test_visit_too_long_ago_escalates_without_a_proposed_action():
     """Mirrors James Okafor's seeded scenario: last visit outside the window."""
     repo = FakeRepo(
-        patient={"id": "pat2", "date_of_birth": "1965-07-24"},
+        patient={"id": "pat2", "first_name": "James", "phone": "510-555-0182", "date_of_birth": "1965-07-24"},
         appointments=[{"status": "scheduled", "start_time": "2024-11-20T09:00:00+00:00"}],
         prescriptions=[
             {
@@ -120,6 +120,7 @@ def test_visit_too_long_ago_escalates_without_a_proposed_action():
     assert result["status"] == "escalated"
     assert "recent-visit window" in result["flagged_reason"]
     assert result["proposed_action"] is None
+    assert result["patient"] == {"id": "pat2", "first_name": "James", "phone": "510-555-0182"}
 
 
 def test_never_prescribed_before_escalates():

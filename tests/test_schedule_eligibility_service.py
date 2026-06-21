@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from scheduling_eligibility.errors import ProviderNotFoundError
+from scheduling_eligibility.errors import PatientNotFoundError, ProviderNotFoundError
 from scheduling_eligibility.service import run_schedule_eligibility_check
 
 PROVIDER_AVAILABILITY = {
@@ -16,6 +16,8 @@ PROVIDER_AVAILABILITY = {
     "fri": ["09:00", "17:00"],
 }
 
+DEFAULT_PATIENT = {"id": "pat1", "first_name": "Robert", "phone": "415-555-0174"}
+
 
 class FakeRepo:
     def __init__(
@@ -24,12 +26,17 @@ class FakeRepo:
         appointments: list[dict[str, Any]] | None = None,
         reschedule_tasks: list[dict[str, Any]] | None = None,
         existing_task: dict[str, Any] | None = None,
+        patient: dict[str, Any] | None = DEFAULT_PATIENT,
     ):
         self._provider = provider
         self._appointments = appointments or []
         self._reschedule_tasks = reschedule_tasks or []
         self._existing_task = existing_task or {}
+        self._patient = patient
         self.updated_tasks: list[tuple[str, dict[str, Any]]] = []
+
+    def get_patient(self, patient_id: str) -> dict[str, Any]:
+        return self._patient or {}
 
     def get_provider(self, provider_id: str) -> dict[str, Any]:
         return self._provider or {}
@@ -76,7 +83,7 @@ def test_open_slot_is_eligible_with_a_proposed_reschedule_action():
     }
 
 
-def test_eligible_slot_has_no_suggested_timeslot_field_when_conflicting():
+def test_conflicting_slot_gets_a_same_day_alternative_suggested():
     existing = [
         {
             "id": "other",
@@ -96,7 +103,17 @@ def test_eligible_slot_has_no_suggested_timeslot_field_when_conflicting():
         summarize=fake_summarize,
     )
 
-    assert result["suggested_timeslot"] is None
+    # Original request isn't honored (eligible stays False), but the next open
+    # slot that same day (right after the conflicting appointment ends) is found.
+    assert result["eligible"] is False
+    assert result["status"] == "pending_approval"
+    assert result["suggested_timeslot"] == {
+        "start": "2026-06-24T10:30:00+00:00",
+        "end": "2026-06-24T11:00:00+00:00",
+        "provider_id": "p1",
+    }
+    assert result["proposed_action"]["new_start"] == "2026-06-24T10:30:00+00:00"
+    assert result["agent_checks"]["scheduling_eligibility"]["alternative_slot_found"] is True
 
 
 def test_task_id_writes_the_result_back_to_the_tasks_table():
@@ -158,16 +175,10 @@ def test_no_task_id_does_not_touch_the_tasks_table():
     assert repo.updated_tasks == []
 
 
-def test_conflicting_slot_is_pending_approval_without_a_proposed_action():
-    existing = [
-        {
-            "id": "other",
-            "status": "scheduled",
-            "start_time": "2026-06-24T10:00:00+00:00",
-            "end_time": "2026-06-24T10:30:00+00:00",
-        }
-    ]
-    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY}, appointments=existing)
+def test_no_alternative_found_within_search_window_escalates():
+    # Empty availability means every candidate day/slot conflicts -- there's
+    # nothing the search could ever find.
+    repo = FakeRepo(provider={"id": "p1", "availability": {}})
 
     result = run_schedule_eligibility_check(
         patient_id="pat1",
@@ -179,9 +190,25 @@ def test_conflicting_slot_is_pending_approval_without_a_proposed_action():
     )
 
     assert result["eligible"] is False
-    assert result["status"] == "pending_approval"
+    assert result["status"] == "escalated"
+    assert "manual scheduling" in result["flagged_reason"]
+    assert result["suggested_timeslot"] is None
     assert result["proposed_action"] is None
-    assert result["agent_checks"]["scheduling_eligibility"]["conflict"] is True
+    assert result["agent_checks"]["scheduling_eligibility"]["alternative_slot_found"] is False
+
+
+def test_missing_patient_raises_a_not_found_error():
+    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY}, patient=None)
+
+    with pytest.raises(PatientNotFoundError):
+        run_schedule_eligibility_check(
+            patient_id="missing-patient",
+            provider_id="p1",
+            requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+            requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+            repo=repo,
+            summarize=fake_summarize,
+        )
 
 
 def test_three_consecutive_reschedules_escalates_for_a_manual_call():

@@ -13,7 +13,6 @@ API_ROOT = REPO_ROOT / "backend" / "api"
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
 
-from scheduling_eligibility.checks import check_calendar_conflict
 from scheduling_eligibility.service import run_schedule_eligibility_check
 
 from .demo_fixtures import APPOINTMENTS, PATIENTS, PRESCRIPTIONS, PROVIDERS, REFERENCE_NOW
@@ -30,6 +29,9 @@ EMERGENCY_PHRASES = ["chest pain", "cannot breathe", "stroke", "unconscious", "e
 
 
 class DemoScheduleRepo:
+    def get_patient(self, patient_id: str) -> dict[str, Any]:
+        return next((patient for patient in PATIENTS if patient["id"] == patient_id), {})
+
     def get_provider(self, provider_id: str) -> dict[str, Any]:
         return next((provider for provider in PROVIDERS if provider["id"] == provider_id), {})
 
@@ -212,6 +214,12 @@ def _run_reschedule(intake: dict[str, Any], patient: dict[str, Any], agent_check
     requested_end = requested_start + timedelta(minutes=30)
     repo = DemoScheduleRepo()
 
+    # The real scheduling_eligibility package now finds an alternative slot
+    # itself when the requested time conflicts -- no need to duplicate that
+    # search here. cancel_appointment_id is intentionally NOT passed into the
+    # check itself (only attached to the resulting proposed_action below): the
+    # demo's conflict scenario relies on the requested slot colliding with the
+    # patient's own pre-existing appointment.
     scheduling = run_schedule_eligibility_check(
         patient_id=patient["id"],
         provider_id=DEFAULT_PROVIDER_ID,
@@ -222,41 +230,15 @@ def _run_reschedule(intake: dict[str, Any], patient: dict[str, Any], agent_check
     )
     agent_checks.update(scheduling["agent_checks"])
 
-    if scheduling["eligible"]:
-        return _task(
-            intake=intake,
-            patient=patient,
-            task_type="reschedule",
-            status=scheduling["status"],
-            agent_checks=agent_checks,
-            proposed_action={
-                **scheduling["proposed_action"],
-                "cancel_appointment_id": _appointment_to_move(patient["id"]),
-            },
-        )
-
-    alternative = _find_next_slot(DEFAULT_PROVIDER_ID, requested_start + timedelta(days=1))
-    proposed_action = None
-    if alternative:
-        start, end = alternative
-        proposed_action = {
-            "type": "reschedule",
-            "cancel_appointment_id": _appointment_to_move(patient["id"]),
-            "new_start": start.isoformat(),
-            "new_end": end.isoformat(),
-            "provider_id": DEFAULT_PROVIDER_ID,
-        }
-        agent_checks["scheduling_eligibility"]["proposed_alternative_slot"] = {
-            "start": start.isoformat(),
-            "end": end.isoformat(),
-            "provider_id": DEFAULT_PROVIDER_ID,
-        }
+    proposed_action = scheduling["proposed_action"]
+    if proposed_action:
+        proposed_action = {**proposed_action, "cancel_appointment_id": _appointment_to_move(patient["id"])}
 
     return _task(
         intake=intake,
         patient=patient,
         task_type="reschedule",
-        status="pending_approval" if proposed_action else scheduling["status"],
+        status=scheduling["status"],
         agent_checks=agent_checks,
         flagged_reason=scheduling["flagged_reason"],
         proposed_action=proposed_action,
@@ -425,26 +407,6 @@ def _parse_requested_start(intake: dict[str, Any]) -> datetime:
     if re.search(r"\bmorning\b", text, re.IGNORECASE):
         hour = 9
     return datetime(REFERENCE_NOW.year, month, day, hour, 0, tzinfo=timezone.utc)
-
-
-def _find_next_slot(provider_id: str, start_after: datetime) -> tuple[datetime, datetime] | None:
-    repo = DemoScheduleRepo()
-    provider = repo.get_provider(provider_id)
-    cursor = start_after.replace(hour=9, minute=0, second=0, microsecond=0)
-    for day_offset in range(14):
-        day = cursor + timedelta(days=day_offset)
-        for hour in range(9, 17):
-            start = day.replace(hour=hour)
-            end = start + timedelta(minutes=30)
-            conflict, _reason = check_calendar_conflict(
-                requested_start=start,
-                requested_end=end,
-                provider_availability=provider["availability"],
-                existing_appointments=repo.get_scheduled_appointments(provider_id),
-            )
-            if not conflict:
-                return start, end
-    return None
 
 
 def _normalize_dosage(value: str) -> str:

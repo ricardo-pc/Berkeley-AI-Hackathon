@@ -14,3 +14,7 @@ HOLIDAYS: set[str] = {
 # reschedule requests since their last completed visit (i.e. this many prior
 # requests already happened before the current one).
 CONSECUTIVE_RESCHEDULE_THRESHOLD = 2
+
+# How far ahead to search for an alternative slot when the requested time conflicts.
+ALTERNATIVE_SLOT_SEARCH_DAYS = 14
+ALTERNATIVE_SLOT_STEP_MINUTES = 15

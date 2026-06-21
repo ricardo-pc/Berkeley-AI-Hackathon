@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from confirmation.service import send_confirmation
+from confirmation.service import send_confirmation, send_denial_notice
 
 
 def fake_sender(to: str, body: str) -> dict[str, Any]:
@@ -55,6 +55,33 @@ def test_never_sends_a_text_when_the_executor_failed():
 
     sent = send_confirmation(
         task_type="prescription_refill", phone_number="+14155550101", result=result, sender=fake_sender
+    )
+
+    assert sent is None
+
+
+def test_sends_a_denial_notice_for_an_escalated_refill():
+    sent = send_denial_notice(
+        task_type="prescription_refill", phone_number="+14155550182", first_name="James", sender=fake_sender
+    )
+
+    assert sent is not None
+    assert sent["to"] == "+14155550182"
+    assert "call" in sent["body"].lower()
+
+
+def test_sends_a_denial_notice_for_an_escalated_reschedule():
+    sent = send_denial_notice(
+        task_type="reschedule", phone_number="+14155550193", first_name="Linda", sender=fake_sender
+    )
+
+    assert sent is not None
+    assert "Linda" in sent["body"]
+
+
+def test_never_sends_a_denial_notice_for_message_relay():
+    sent = send_denial_notice(
+        task_type="message_relay", phone_number="+14155550165", first_name="Priya", sender=fake_sender
     )
 
     assert sent is None

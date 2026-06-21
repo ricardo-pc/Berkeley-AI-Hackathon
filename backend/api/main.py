@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from confirmation.errors import ConfirmationError
-from confirmation.service import send_confirmation
+from confirmation.service import send_confirmation, send_denial_notice
 from intake.errors import IntakeAgentError
 from intake.errors import error_payload as intake_error_payload
 from intake.schemas import IntakeExtraction, to_plain_dict as intake_to_plain_dict
@@ -218,6 +218,7 @@ async def create_schedule_eligibility_check(payload: IntakeWorkflowRequest):
     except ScheduleEligibilityError as exc:
         return _schedule_eligibility_error_response(exc)
 
+    result["denial_notice"] = _try_send_denial_notice("reschedule", result)
     return result
 
 
@@ -253,6 +254,7 @@ async def create_prescription_eligibility_check(payload: IntakeWorkflowRequest):
     except PrescriptionEligibilityError as exc:
         return _prescription_eligibility_error_response(exc)
 
+    result["denial_notice"] = _try_send_denial_notice("prescription_refill", result)
     return result
 
 
@@ -315,6 +317,28 @@ def _try_send_confirmation(task_type: str, result: dict) -> dict | None:
 
     try:
         sent = send_confirmation(task_type=task_type, phone_number=phone_number, result=result)
+    except ConfirmationError as exc:
+        return {"sent": False, "reason": str(exc)}
+
+    return {"sent": sent is not None, **(sent or {})}
+
+
+def _try_send_denial_notice(task_type: str, result: dict) -> dict | None:
+    """Symmetric counterpart to _try_send_confirmation -- fires when an eligibility
+    check escalates instead of approving. Best-effort: never raises into the caller.
+    """
+    if result.get("status") != "escalated":
+        return None
+
+    patient = result.get("patient") or {}
+    phone_number = patient.get("phone")
+    if not phone_number:
+        return {"sent": False, "reason": "no phone number on file"}
+
+    try:
+        sent = send_denial_notice(
+            task_type=task_type, phone_number=phone_number, first_name=patient.get("first_name")
+        )
     except ConfirmationError as exc:
         return {"sent": False, "reason": str(exc)}
 

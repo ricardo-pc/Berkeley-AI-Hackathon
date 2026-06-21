@@ -37,6 +37,26 @@ def build_confirmation_message(task_type: str, result: dict[str, Any]) -> str | 
     return f"Hi {first_name}, your appointment has been rescheduled to {when}{with_doctor}. See you then!"
 
 
+DENIAL_NOUNS = {
+    "prescription_refill": "prescription refill request",
+    "reschedule": "appointment request",
+}
+
+
+def build_denial_message(task_type: str, first_name: str | None) -> str | None:
+    """The symmetric counterpart to build_confirmation_message -- sent when an
+    eligibility check escalates a refill/reschedule instead of approving it.
+    Deliberately generic: it doesn't repeat the specific reason (insurance,
+    visit history, etc.) over SMS, just tells the patient to call back.
+    """
+    noun = DENIAL_NOUNS.get(task_type)
+    if noun is None:
+        return None
+
+    name = first_name or "there"
+    return f"Hi {name}, we're unable to process your {noun} automatically. Please call our office back so we can assist you."
+
+
 def _format_when(start_time: str) -> str:
     try:
         parsed = datetime.fromisoformat(start_time)

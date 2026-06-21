@@ -33,6 +33,14 @@ class ProviderNotFoundError(ScheduleEligibilityError):
         super().__init__(f"Provider {provider_id} not found.")
 
 
+class PatientNotFoundError(ScheduleEligibilityError):
+    code = "patient_not_found"
+    status_code = 404
+
+    def __init__(self, patient_id: str):
+        super().__init__(f"Patient {patient_id} not found.")
+
+
 def error_payload(exc: ScheduleEligibilityError) -> dict:
     return {
         "error": {

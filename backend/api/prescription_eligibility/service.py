@@ -105,6 +105,11 @@ def run_prescription_eligibility_check(
         "agent_checks": checks,
         "agent_summary": agent_summary,
         "proposed_action": proposed_action,
+        "patient": {
+            "id": patient.get("id", patient_id),
+            "first_name": patient.get("first_name"),
+            "phone": patient.get("phone"),
+        },
     }
 
     if task_id:

@@ -1,9 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Iterable
 
-from .constants import CONSECUTIVE_RESCHEDULE_THRESHOLD, HOLIDAYS, WEEKDAY_KEYS
+from .constants import (
+    ALTERNATIVE_SLOT_SEARCH_DAYS,
+    ALTERNATIVE_SLOT_STEP_MINUTES,
+    CONSECUTIVE_RESCHEDULE_THRESHOLD,
+    HOLIDAYS,
+    WEEKDAY_KEYS,
+)
 
 
 def check_calendar_conflict(
@@ -40,6 +46,46 @@ def check_calendar_conflict(
             return True, "Requested time overlaps an existing appointment."
 
     return False, None
+
+
+def find_next_available_slot(
+    *,
+    requested_start: datetime,
+    duration: timedelta,
+    provider_availability: dict[str, list[str]],
+    existing_appointments: list[dict[str, Any]],
+    exclude_appointment_id: str | None = None,
+    search_days: int = ALTERNATIVE_SLOT_SEARCH_DAYS,
+    step_minutes: int = ALTERNATIVE_SLOT_STEP_MINUTES,
+) -> tuple[datetime, datetime] | None:
+    """Searches forward from the requested time for the soonest open slot of the same duration.
+
+    Re-checks the same (already-fetched) existing_appointments against every
+    candidate via check_calendar_conflict, so holidays/provider-hours/overlaps
+    are all honored automatically. Returns None if nothing opens up within
+    search_days.
+    """
+    day_start = requested_start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    for day_offset in range(search_days):
+        day = day_start + timedelta(days=day_offset)
+        for minutes in range(0, 24 * 60, step_minutes):
+            candidate_start = day + timedelta(minutes=minutes)
+            if candidate_start < requested_start:
+                continue
+
+            candidate_end = candidate_start + duration
+            conflict, _reason = check_calendar_conflict(
+                requested_start=candidate_start,
+                requested_end=candidate_end,
+                provider_availability=provider_availability,
+                existing_appointments=existing_appointments,
+                exclude_appointment_id=exclude_appointment_id,
+            )
+            if not conflict:
+                return candidate_start, candidate_end
+
+    return None
 
 
 def check_consecutive_reschedules(
