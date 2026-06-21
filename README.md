@@ -4,6 +4,11 @@ Project name: TBD
 
 Cuts down unnecessary time on simple, repetitive tasks at a hospital front desk. Missed voicemails (prescription refills, schedule adjustments, message relays) pile up and are slow to triage by hand. This project turns voicemails into a dashboard where a certified healthcare worker (CHW) can approve repetitive tasks with one click, while edge cases are surfaced for manual review.
 
+## Live Deployments
+
+- `berkapp` EHR demo: https://berkapp-three.vercel.app
+- `dashboard` CHW approval dashboard: https://dashboard-azure-six-79.vercel.app
+
 ## Structure
 
 - `agents/` — pipeline agents, one subfolder each:
