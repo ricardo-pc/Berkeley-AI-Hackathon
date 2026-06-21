@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+API_ROOT = Path(__file__).resolve().parent
+ELIGIBILITY_SERVICE_ROOT = API_ROOT.parent / "eligibility_service"
+sys.path.insert(0, str(ELIGIBILITY_SERVICE_ROOT))
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
@@ -49,7 +54,6 @@ from transcription.schemas import TranscriptionResponse, to_plain_dict
 from transcription.service import normalize_deepgram_response, transcribe_audio
 
 
-API_ROOT = Path(__file__).resolve().parent
 JAMES_MOCK_TRANSCRIPTION_PATH = API_ROOT / "contracts" / "james_mock_transcription.json"
 
 

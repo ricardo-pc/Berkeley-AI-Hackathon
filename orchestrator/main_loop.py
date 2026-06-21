@@ -13,8 +13,8 @@ API_ROOT = REPO_ROOT / "backend" / "api"
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
 
-from scheduling_eligibility.checks import check_calendar_conflict
-from scheduling_eligibility.service import run_schedule_eligibility_check
+from backend.eligibility_service.scheduling_eligibility.checks import check_calendar_conflict
+from backend.eligibility_service.scheduling_eligibility.service import run_schedule_eligibility_check
 
 from .demo_fixtures import APPOINTMENTS, PATIENTS, PRESCRIPTIONS, PROVIDERS, REFERENCE_NOW
 
@@ -218,9 +218,8 @@ def _run_reschedule(intake: dict[str, Any], patient: dict[str, Any], agent_check
         requested_start=requested_start,
         requested_end=requested_end,
         repo=repo,
-        summarize=lambda checks: "Schedule eligibility checks completed.",
     )
-    agent_checks.update(scheduling["agent_checks"])
+    agent_checks.update(scheduling["checks"])
 
     if scheduling["eligible"]:
         return _task(

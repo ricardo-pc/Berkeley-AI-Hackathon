@@ -19,7 +19,6 @@ class ScheduleEligibilityResult(BaseModel):
     eligible: bool
     status: Literal["pending_approval", "escalated"]
     flagged_reason: Optional[str] = None
-    agent_checks: Dict[str, Any]
-    agent_summary: str
+    checks: Dict[str, Any]
     suggested_timeslot: Optional[Dict[str, Any]] = None
     proposed_action: Optional[Dict[str, Any]] = None

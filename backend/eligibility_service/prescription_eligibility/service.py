@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from .checks import (
     check_conflicting_medication,
@@ -9,8 +9,8 @@ from .checks import (
     check_recent_visit,
     check_upcoming_visit,
     determine_visit_window_months,
+    find_identical_prior_prescription,
 )
-from .claude_summary import generate_agent_summary
 from .errors import PatientNotFoundError
 from .repo import PrescriptionEligibilityRepo
 
@@ -24,7 +24,6 @@ def run_prescription_eligibility_check(
     repo: PrescriptionEligibilityRepo,
     task_id: str | None = None,
     now: datetime | None = None,
-    summarize: Callable[[dict[str, Any]], str] = generate_agent_summary,
 ) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
 
@@ -55,21 +54,30 @@ def run_prescription_eligibility_check(
     )
 
     eligible = has_recent_visit and has_upcoming_visit and ever_prescribed and dosage_match
+    matching_prescription = find_identical_prior_prescription(
+        medication_name=medication_name,
+        dosage=dosage,
+        instructions=instructions,
+        prior_prescriptions=prescriptions,
+    )
 
+    prescription_checks = {
+        "eligible": eligible,
+        "medication": medication_name,
+        "requested_dosage": dosage,
+        "requested_instructions": instructions,
+        "visit_window_months": window_months,
+        "has_recent_visit": has_recent_visit,
+        "last_visit": last_visit,
+        "has_upcoming_visit": has_upcoming_visit,
+        "ever_prescribed": ever_prescribed,
+        "dosage_match": dosage_match,
+        "identical_prior_prescription_id": (matching_prescription or {}).get("id"),
+        "conflict": conflict,
+        "conflict_medication": conflict_medication,
+    }
     checks = {
-        "prescription_eligibility": {
-            "medication": medication_name,
-            "requested_dosage": dosage,
-            "requested_instructions": instructions,
-            "visit_window_months": window_months,
-            "has_recent_visit": has_recent_visit,
-            "last_visit": last_visit,
-            "has_upcoming_visit": has_upcoming_visit,
-            "ever_prescribed": ever_prescribed,
-            "dosage_match": dosage_match,
-            "conflict": conflict,
-            "conflict_medication": conflict_medication,
-        }
+        "prescription": prescription_checks,
     }
 
     status = "pending_approval" if eligible else "escalated"
@@ -82,28 +90,22 @@ def run_prescription_eligibility_check(
 
     proposed_action = None
     if eligible:
-        matching_prescription = next(
-            p
-            for p in prescriptions
-            if p.get("medication_name", "").strip().lower() == medication_name.strip().lower()
-        )
         proposed_action = {
             "type": "prescription_refill",
             "medication_name": medication_name,
             "dosage": dosage,
             "instructions": instructions,
-            "provider_id": matching_prescription.get("provider_id"),
+            "provider_id": (
+                matching_prescription.get("provider_id") if matching_prescription else None
+            ),
             "patient_id": patient_id,
         }
-
-    agent_summary = summarize(checks)
 
     result = {
         "eligible": eligible,
         "status": status,
         "flagged_reason": flagged_reason,
-        "agent_checks": checks,
-        "agent_summary": agent_summary,
+        "checks": checks,
         "proposed_action": proposed_action,
     }
 
@@ -114,7 +116,7 @@ def run_prescription_eligibility_check(
             task_id,
             {
                 "status": status,
-                "agent_summary": agent_summary,
+                "agent_summary": None,
                 "agent_checks": merged_checks,
                 "proposed_action": proposed_action,
                 "flagged_reason": flagged_reason,
@@ -140,4 +142,4 @@ def _ineligibility_reason(
         reasons.append("no visit within the required recent-visit window")
     if not has_upcoming_visit:
         reasons.append("no upcoming visit scheduled within the next year")
-    return "Refill cannot proceed automatically: " + "; ".join(reasons) + "."
+    return "; ".join(reasons)

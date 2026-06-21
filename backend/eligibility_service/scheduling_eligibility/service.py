@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from .checks import check_calendar_conflict, check_consecutive_reschedules
-from .claude_summary import generate_agent_summary
 from .errors import ProviderNotFoundError
 from .repo import ScheduleEligibilityRepo
 
@@ -23,7 +22,6 @@ def run_schedule_eligibility_check(
     repo: ScheduleEligibilityRepo,
     cancel_appointment_id: str | None = None,
     task_id: str | None = None,
-    summarize: Callable[[dict[str, Any]], str] = generate_agent_summary,
 ) -> dict[str, Any]:
     provider = repo.get_provider(provider_id)
     if not provider:
@@ -77,14 +75,11 @@ def run_schedule_eligibility_check(
             "provider_id": provider_id,
         }
 
-    agent_summary = summarize(checks)
-
     result = {
         "eligible": eligible,
         "status": status,
         "flagged_reason": flagged_reason,
-        "agent_checks": checks,
-        "agent_summary": agent_summary,
+        "checks": checks,
         "suggested_timeslot": suggested_timeslot,
         "proposed_action": proposed_action,
     }
@@ -96,7 +91,7 @@ def run_schedule_eligibility_check(
             task_id,
             {
                 "status": status,
-                "agent_summary": agent_summary,
+                "agent_summary": None,
                 "agent_checks": merged_checks,
                 "proposed_action": proposed_action,
                 "flagged_reason": flagged_reason,

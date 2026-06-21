@@ -81,6 +81,36 @@ def check_dosage_match(
     return True, identical
 
 
+def find_identical_prior_prescription(
+    *,
+    medication_name: str,
+    dosage: str,
+    instructions: str,
+    prior_prescriptions: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Returns the prior row that exactly matches medication, dosage, and instructions."""
+    normalized_medication = medication_name.strip().lower()
+    normalized_dosage = dosage.strip().lower()
+    normalized_instructions = instructions.strip().lower()
+
+    matches = [
+        prescription
+        for prescription in prior_prescriptions
+        if prescription.get("medication_name", "").strip().lower() == normalized_medication
+        and prescription.get("dosage", "").strip().lower() == normalized_dosage
+        and prescription.get("instructions", "").strip().lower() == normalized_instructions
+    ]
+    if not matches:
+        return None
+
+    return max(
+        matches,
+        key=lambda prescription: _as_datetime(
+            prescription.get("prescribed_at") or "1970-01-01T00:00:00+00:00"
+        ),
+    )
+
+
 def check_conflicting_medication(
     *,
     medication_name: str,

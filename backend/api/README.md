@@ -64,30 +64,30 @@ curl -X POST http://localhost:8000/api/intake \
 
 `/api/intake` and `/api/voicemail/intake` return sanitized intake output: structured patient fields, request content detection, preferred-time objects, missing fields, and compact transcript text.
 
-## Schedule Adjustment Eligibility Agent
+## Schedule Adjustment Eligibility Service
 
-`scheduling_eligibility/` checks whether a reschedule request can proceed:
+`../eligibility_service/scheduling_eligibility/` checks whether a reschedule request can proceed:
 
 - Calendar conflicts — clinic holidays, provider working hours, and overlapping booked appointments (reads `providers` + `appointments` from Supabase, schema in [docs/database](../../docs/database/README.md)).
 - Repeated-request abuse — flags a patient for a manual call once they've made more than 2 consecutive reschedule requests since their last completed visit.
 
-The conflict/consecutive-request logic is pure Python (`checks.py`, fully unit tested). `service.py` orchestrates the checks against a `ScheduleEligibilityRepo` (Supabase-backed in `repo.py`, fake-able in tests) and calls Claude (`claude_summary.py`, Anthropic API) only to write the plain-English `agent_summary` shown to the CHW.
+The conflict/consecutive-request logic is pure Python (`checks.py`, fully unit tested). `service.py` orchestrates the checks against a `ScheduleEligibilityRepo` (Supabase-backed in `repo.py`, fake-able in tests) and returns deterministic structured `checks`; task write-back maps those checks into the legacy `tasks.agent_checks` column and clears `tasks.agent_summary`.
 
 ### Setup
 
 Same venv as above, plus:
 
 ```bash
-cd backend/api
+cd backend/eligibility_service
 pip install -r requirements.txt
 ```
 
-Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ANTHROPIC_API_KEY` in `.env`.
+Fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
 
 ### CLI usage
 
 ```bash
-cd backend/api
+cd backend/eligibility_service
 python3 -m scheduling_eligibility.cli \
   --patient-id <uuid> --provider-id <uuid> \
   --start 2026-06-25T09:00:00+00:00 --end 2026-06-25T09:30:00+00:00 \

@@ -17,14 +17,6 @@ class MissingSupabaseConfigError(ScheduleEligibilityError):
         super().__init__("Supabase URL/service role key not configured.")
 
 
-class MissingAnthropicAPIKeyError(ScheduleEligibilityError):
-    code = "missing_anthropic_api_key"
-    status_code = 500
-
-    def __init__(self):
-        super().__init__("Anthropic API key not configured.")
-
-
 class ProviderNotFoundError(ScheduleEligibilityError):
     code = "provider_not_found"
     status_code = 404

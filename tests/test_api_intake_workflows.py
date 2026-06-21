@@ -107,7 +107,11 @@ def test_prescription_eligibility_accepts_intake_payload(monkeypatch):
 
     def fake_run_prescription_eligibility_check(**kwargs):
         seen.update(kwargs)
-        return {"eligible": True, "status": "pending_approval"}
+        return {
+            "eligible": True,
+            "status": "pending_approval",
+            "checks": {"prescription": {"eligible": True}},
+        }
 
     monkeypatch.setattr(main, "SupabaseSchedulerRepo", lambda: FakeSchedulerRepo())
     monkeypatch.setattr(main, "SupabasePrescriptionEligibilityRepo", lambda: object())
@@ -118,6 +122,9 @@ def test_prescription_eligibility_accepts_intake_payload(monkeypatch):
 
     assert response.status_code == 200
     assert response.json()["eligible"] is True
+    assert response.json()["checks"]["prescription"]["eligible"] is True
+    assert "agent_checks" not in response.json()
+    assert "agent_summary" not in response.json()
     assert seen["patient_id"] == "patient-1"
     assert seen["medication_name"] == "Lisinopril"
     assert seen["dosage"] == "10mg"
@@ -129,7 +136,11 @@ def test_schedule_eligibility_accepts_intake_payload_with_required_slot(monkeypa
 
     def fake_run_schedule_eligibility_check(**kwargs):
         seen.update(kwargs)
-        return {"eligible": True, "status": "pending_approval"}
+        return {
+            "eligible": True,
+            "status": "pending_approval",
+            "checks": {"scheduling_eligibility": {"conflict": False}},
+        }
 
     monkeypatch.setattr(main, "SupabaseSchedulerRepo", lambda: FakeSchedulerRepo())
     monkeypatch.setattr(main, "SupabaseScheduleEligibilityRepo", lambda: object())
@@ -148,6 +159,9 @@ def test_schedule_eligibility_accepts_intake_payload_with_required_slot(monkeypa
 
     assert response.status_code == 200
     assert response.json()["eligible"] is True
+    assert response.json()["checks"]["scheduling_eligibility"]["conflict"] is False
+    assert "agent_checks" not in response.json()
+    assert "agent_summary" not in response.json()
     assert seen["patient_id"] == "patient-1"
     assert seen["provider_id"] == "provider-1"
     assert seen["requested_start"] == datetime.fromisoformat("2026-06-24T15:00:00+00:00")
