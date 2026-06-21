@@ -46,6 +46,10 @@ class TasksRepo:
     def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
         self._c.table("tasks").update(fields).eq("id", task_id).execute()
 
+    def insert_task(self, fields: dict[str, Any]) -> dict[str, Any]:
+        rows = self._c.table("tasks").insert(fields).execute().data or []
+        return rows[0] if rows else {}
+
     # --- joins ---
     def patients_by_ids(self, ids: list[str]) -> dict[str, dict[str, Any]]:
         if not ids:
@@ -70,6 +74,20 @@ class TasksRepo:
 
     def get_patient(self, patient_id: str) -> dict[str, Any] | None:
         rows = self._c.table("patients").select("*").eq("id", patient_id).limit(1).execute().data or []
+        return rows[0] if rows else None
+
+    def find_patient_by_identity(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None:
+        rows = (
+            self._c.table("patients")
+            .select("*")
+            .eq("first_name", first_name)
+            .eq("last_name", last_name)
+            .eq("date_of_birth", dob)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
         return rows[0] if rows else None
 
     # --- relay delivery (message_relay executor) ---

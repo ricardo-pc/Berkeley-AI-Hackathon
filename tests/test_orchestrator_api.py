@@ -63,9 +63,18 @@ class FakeOrchestratorRepo:
         "preferred_provider_id": "provider-1",
     }
     appointment: dict[str, Any] | None = {"id": "appointment-1"}
+    inserted_tasks: list[dict[str, Any]]
+
+    def __init__(self) -> None:
+        self.inserted_tasks = []
 
     def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None:
         return self.patient
+
+    def insert_task(self, fields: dict[str, Any]) -> dict[str, Any]:
+        row = {"id": f"inserted-task-{len(self.inserted_tasks) + 1}", **fields}
+        self.inserted_tasks.append(row)
+        return row
 
     def get_next_scheduled_appointment(self, patient_id: str) -> dict[str, Any] | None:
         return self.appointment
@@ -105,7 +114,7 @@ def test_reschedule_derives_provider_and_times_from_intake(monkeypatch):
         seen.update(kwargs)
         return {"eligible": True, "status": "pending_approval", "checks": {"scheduling_eligibility": {}}}
 
-    _patch_orchestrator_repo(monkeypatch)
+    repo = _patch_orchestrator_repo(monkeypatch)
     monkeypatch.setattr(orchestrator_main, "SupabaseScheduleEligibilityRepo", lambda: object())
     monkeypatch.setattr(orchestrator_main, "run_schedule_eligibility_check", fake_run_schedule_eligibility_check)
 
@@ -121,6 +130,64 @@ def test_reschedule_derives_provider_and_times_from_intake(monkeypatch):
     assert seen["requested_end"] == datetime.fromisoformat("2026-06-24T15:30:00+00:00")
     assert seen["cancel_appointment_id"] == "appointment-1"
     assert seen["task_id"] == "task-1"
+    assert repo.inserted_tasks == []
+
+
+def test_fresh_reschedule_inserts_new_task_and_returns_task_id(monkeypatch):
+    def fake_run_schedule_eligibility_check(**kwargs):
+        return {
+            "eligible": True,
+            "status": "pending_approval",
+            "checks": {"scheduling_eligibility": {"conflict": False}},
+            "proposed_action": {"type": "reschedule", "new_start": "2026-06-24T15:00:00+00:00"},
+        }
+
+    repo = _patch_orchestrator_repo(monkeypatch)
+    monkeypatch.setattr(orchestrator_main, "SupabaseScheduleEligibilityRepo", lambda: object())
+    monkeypatch.setattr(orchestrator_main, "run_schedule_eligibility_check", fake_run_schedule_eligibility_check)
+
+    response = TestClient(orchestrator_main.app).post("/api/reschedule", json={"intake": _intake_payload("reschedule")})
+
+    assert response.status_code == 200
+    assert response.json()["task_id"] == "inserted-task-1"
+    assert len(repo.inserted_tasks) == 1
+    assert repo.inserted_tasks[0]["task_type"] == "reschedule"
+    assert repo.inserted_tasks[0]["status"] == "pending_approval"
+    assert repo.inserted_tasks[0]["agent_checks"]["scheduling_eligibility"]["conflict"] is False
+
+
+def test_conflict_with_alternative_inserts_pending_manual_review_task(monkeypatch):
+    def fake_run_schedule_eligibility_check(**kwargs):
+        return {
+            "eligible": False,
+            "status": "pending_approval",
+            "flagged_reason": None,
+            "checks": {
+                "scheduling_eligibility": {
+                    "conflict": True,
+                    "conflict_reason": "Requested time overlaps an existing appointment.",
+                    "alternative_slot_found": True,
+                }
+            },
+            "proposed_action": {
+                "type": "reschedule",
+                "new_start": "2026-06-24T15:30:00+00:00",
+                "new_end": "2026-06-24T16:00:00+00:00",
+            },
+        }
+
+    repo = _patch_orchestrator_repo(monkeypatch)
+    monkeypatch.setattr(orchestrator_main, "SupabaseScheduleEligibilityRepo", lambda: object())
+    monkeypatch.setattr(orchestrator_main, "run_schedule_eligibility_check", fake_run_schedule_eligibility_check)
+
+    response = TestClient(orchestrator_main.app).post("/api/reschedule", json={"intake": _intake_payload("reschedule")})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "pending_approval"
+    assert response.json()["task_id"] == "inserted-task-1"
+    assert repo.inserted_tasks[0]["status"] == "pending_approval"
+    assert repo.inserted_tasks[0]["agent_checks"]["scheduling_eligibility"]["conflict"] is True
+    assert repo.inserted_tasks[0]["proposed_action"]["type"] == "reschedule"
 
 
 def test_message_relay_accepts_intake_and_calls_message_relay(monkeypatch):

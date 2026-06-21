@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 
+import httpx
 from fastapi.testclient import TestClient
 
 import main
 from backend.orchestrator import main as orchestrator_main
+from intake import orchestrator as intake_orchestrator
 from intake import service as intake_service
 from intake.schemas import IntakeExtraction
 
@@ -56,6 +58,9 @@ def _intake_payload(request_type: str = "refill") -> dict:
 
 
 class FakeOrchestratorRepo:
+    def __init__(self) -> None:
+        self.inserted_tasks: list[dict] = []
+
     def find_patient(self, first_name: str, last_name: str, dob: str) -> dict:
         return {
             "id": "patient-1",
@@ -65,6 +70,11 @@ class FakeOrchestratorRepo:
             "insurance_valid": True,
             "preferred_provider_id": "provider-1",
         }
+
+    def insert_task(self, fields: dict) -> dict:
+        row = {"id": f"orchestrator-task-{len(self.inserted_tasks) + 1}", **fields}
+        self.inserted_tasks.append(row)
+        return row
 
     def get_next_scheduled_appointment(self, patient_id: str) -> dict:
         return {"id": "appointment-1"}
@@ -163,6 +173,98 @@ def test_voicemail_intake_workflow_transcribes_extracts_and_routes(monkeypatch):
     assert transcription.transcript == "Maria needs a refill."
     assert intake.request.type == "refill"
     assert orchestrator_results[0]["result"]["eligible"] is True
+
+
+class FakeTasksRepo:
+    def __init__(self) -> None:
+        self.inserted_tasks: list[dict] = []
+
+    def insert_task(self, fields: dict) -> dict:
+        row = {"id": f"api-task-{len(self.inserted_tasks) + 1}", **fields}
+        self.inserted_tasks.append(row)
+        return row
+
+    def find_patient_by_identity(self, first_name: str, last_name: str, dob: str) -> dict:
+        return {"id": "patient-1"}
+
+
+def test_route_intake_passes_through_orchestrator_created_task_id(monkeypatch):
+    async def fake_post_to_orchestrator(path: str, payload: dict):
+        assert path == "/api/reschedule"
+        assert payload["task_id"] is None
+        return httpx.Response(
+            200,
+            json={
+                "eligible": False,
+                "status": "pending_approval",
+                "task_id": "orchestrator-task-1",
+                "checks": {"scheduling_eligibility": {"conflict": True}},
+            },
+        )
+
+    monkeypatch.setattr(intake_orchestrator, "_post_to_orchestrator", fake_post_to_orchestrator)
+
+    results = asyncio.run(
+        intake_orchestrator.route_intake_to_orchestrator(IntakeExtraction(**_intake_payload("reschedule")))
+    )
+
+    assert results == [
+        {
+            "request_type": "reschedule",
+            "orchestrator_path": "/api/reschedule",
+            "status_code": 200,
+            "result": {
+                "eligible": False,
+                "status": "pending_approval",
+                "task_id": "orchestrator-task-1",
+                "checks": {"scheduling_eligibility": {"conflict": True}},
+            },
+        }
+    ]
+
+
+def test_route_intake_persists_rejected_follow_up_task_on_orchestrator_http_error(monkeypatch):
+    fake_repo = FakeTasksRepo()
+
+    async def fake_post_to_orchestrator(path: str, payload: dict):
+        return httpx.Response(500, json={"error": {"code": "boom", "message": "scheduler unavailable"}})
+
+    monkeypatch.setattr(intake_orchestrator, "_post_to_orchestrator", fake_post_to_orchestrator)
+    monkeypatch.setattr(intake_orchestrator, "TasksRepo", lambda: fake_repo)
+
+    results = asyncio.run(
+        intake_orchestrator.route_intake_to_orchestrator(IntakeExtraction(**_intake_payload("reschedule")))
+    )
+
+    assert results[0]["status_code"] == 500
+    assert results[0]["result"]["status"] == "rejected"
+    assert results[0]["result"]["task_id"] == "api-task-1"
+    assert fake_repo.inserted_tasks[0]["task_type"] == "reschedule"
+    assert fake_repo.inserted_tasks[0]["status"] == "rejected"
+    assert fake_repo.inserted_tasks[0]["patient_id"] == "patient-1"
+    assert fake_repo.inserted_tasks[0]["proposed_action"] is None
+    assert fake_repo.inserted_tasks[0]["agent_checks"]["orchestrator_error"]["code"] == "boom"
+
+
+def test_route_intake_persists_rejected_follow_up_task_on_orchestrator_transport_error(monkeypatch):
+    fake_repo = FakeTasksRepo()
+
+    async def fake_post_to_orchestrator(path: str, payload: dict):
+        request = httpx.Request("POST", f"http://orchestrator{path}")
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    monkeypatch.setattr(intake_orchestrator, "_post_to_orchestrator", fake_post_to_orchestrator)
+    monkeypatch.setattr(intake_orchestrator, "TasksRepo", lambda: fake_repo)
+
+    results = asyncio.run(
+        intake_orchestrator.route_intake_to_orchestrator(IntakeExtraction(**_intake_payload("reschedule")))
+    )
+
+    assert results[0]["status_code"] is None
+    assert results[0]["result"]["status"] == "rejected"
+    assert results[0]["result"]["task_id"] == "api-task-1"
+    assert fake_repo.inserted_tasks[0]["flagged_reason"].startswith("Orchestrator failed")
+    assert fake_repo.inserted_tasks[0]["agent_checks"]["orchestrator_error"]["code"] == "ConnectTimeout"
 
 
 def test_prescription_eligibility_accepts_intake_payload(monkeypatch):

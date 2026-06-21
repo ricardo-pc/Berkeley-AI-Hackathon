@@ -9,6 +9,7 @@ import httpx
 from fastapi.responses import JSONResponse
 
 from .schemas import IntakeExtraction, IntakeRequestDetails, to_plain_dict
+from tasks.repo import TasksRepo
 
 
 API_ROOT = Path(__file__).resolve().parents[1]
@@ -32,19 +33,61 @@ async def route_intake_to_orchestrator(
         routed_intake = _intake_with_request(intake, request)
         path_or_response = _orchestrator_path_for(request.type)
         if isinstance(path_or_response, JSONResponse):
-            results.append(await _json_response_payload(path_or_response, request.type))
+            payload = await _json_response_payload(path_or_response, request.type)
+            if not task_id:
+                payload["result"] = _persist_orchestrator_failure_task(
+                    intake=routed_intake,
+                    request_type=request.type,
+                    path=None,
+                    status_code=payload["status_code"],
+                    error_payload=payload["result"],
+                )
+            results.append(payload)
             continue
 
-        response = await _post_to_orchestrator(
-            path_or_response,
-            {"intake": routed_intake, "task_id": task_id},
-        )
+        try:
+            response = await _post_to_orchestrator(
+                path_or_response,
+                {"intake": routed_intake, "task_id": task_id},
+            )
+        except httpx.HTTPError as exc:
+            results.append(
+                {
+                    "request_type": request.type,
+                    "orchestrator_path": path_or_response,
+                    "status_code": None,
+                    "result": _persist_orchestrator_failure_task(
+                        intake=routed_intake,
+                        request_type=request.type,
+                        path=path_or_response,
+                        status_code=None,
+                        error_payload={
+                            "error": {
+                                "code": exc.__class__.__name__,
+                                "message": str(exc),
+                            }
+                        },
+                    ),
+                }
+            )
+            continue
+
+        result = _response_json(response)
+        if not task_id and _is_orchestrator_failure(response.status_code, result):
+            result = _persist_orchestrator_failure_task(
+                intake=routed_intake,
+                request_type=request.type,
+                path=path_or_response,
+                status_code=response.status_code,
+                error_payload=result,
+            )
+
         results.append(
             {
                 "request_type": request.type,
                 "orchestrator_path": path_or_response,
                 "status_code": response.status_code,
-                "result": _response_json(response),
+                "result": result,
             }
         )
     return results
@@ -141,3 +184,63 @@ def _decode_json_response(response: JSONResponse) -> dict[str, Any]:
 
     payload = json.loads(response.body.decode("utf-8"))
     return payload if isinstance(payload, dict) else {"result": payload}
+
+
+def _is_orchestrator_failure(status_code: int, result: dict[str, Any]) -> bool:
+    return status_code < 200 or status_code >= 300 or "error" in result
+
+
+def _persist_orchestrator_failure_task(
+    *,
+    intake: dict[str, Any],
+    request_type: str | None,
+    path: str | None,
+    status_code: int | None,
+    error_payload: dict[str, Any],
+) -> dict[str, Any]:
+    error = error_payload.get("error") if isinstance(error_payload.get("error"), dict) else {}
+    code = error.get("code") or "orchestrator_failure"
+    message = error.get("message") or error_payload.get("message") or "Unknown orchestrator failure."
+    status_text = f"status {status_code}" if status_code is not None else "transport error"
+    flagged_reason = f"Orchestrator failed on {path or 'request routing'} ({status_text}): {message}"
+    task = {
+        "status": "rejected",
+        "task_type": _task_type_for_request(request_type),
+        "patient_id": _patient_id_for_intake(intake),
+        "agent_summary": "Orchestrator failed while processing this voicemail; manual follow-up required.",
+        "agent_checks": {
+            "orchestrator_error": {
+                "code": code,
+                "message": message,
+                "path": path,
+                "status_code": status_code,
+                "raw": error_payload,
+            }
+        },
+        "proposed_action": None,
+        "flagged_reason": flagged_reason,
+    }
+    row = TasksRepo().insert_task(task)
+    if row.get("id"):
+        task["task_id"] = row["id"]
+    return task
+
+
+def _task_type_for_request(request_type: str | None) -> str:
+    aliases = {
+        "refill": "prescription_refill",
+        "prescription_refill": "prescription_refill",
+        "reschedule": "reschedule",
+        "message_relay": "message_relay",
+    }
+    return aliases.get((request_type or "").strip().lower(), "escalate")
+
+
+def _patient_id_for_intake(intake: dict[str, Any]) -> str | None:
+    first_name = intake.get("first_name")
+    last_name = intake.get("last_name")
+    dob = intake.get("date_of_birth")
+    if not first_name or not last_name or not dob:
+        return None
+    patient = TasksRepo().find_patient_by_identity(str(first_name), str(last_name), str(dob))
+    return patient.get("id") if patient else None
