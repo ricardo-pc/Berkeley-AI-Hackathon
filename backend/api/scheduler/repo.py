@@ -1,0 +1,106 @@
+from __future__ import annotations
+
+import os
+from datetime import datetime
+from typing import Any, Protocol
+
+from .errors import BookingFailedError, MissingSupabaseConfigError
+
+try:
+    from dotenv import find_dotenv, load_dotenv
+except ImportError:  # pragma: no cover - python-dotenv is listed in requirements.
+    find_dotenv = None
+    load_dotenv = None
+
+
+class SchedulerRepo(Protocol):
+    def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None: ...
+
+    def mark_appointment_rescheduled(self, appointment_id: str) -> bool: ...
+
+    def insert_appointment(
+        self,
+        *,
+        patient_id: str,
+        provider_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        visit_type: str,
+    ) -> dict[str, Any]: ...
+
+
+def load_environment() -> None:
+    if not find_dotenv or not load_dotenv:
+        return
+    env_path = find_dotenv(usecwd=True)
+    if env_path:
+        load_dotenv(env_path)
+
+
+class SupabaseSchedulerRepo:
+    """Resolves the patient and writes the booking to Supabase using the service role key."""
+
+    def __init__(self, client: Any | None = None):
+        self._client = client or _build_supabase_client()
+
+    def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None:
+        response = (
+            self._client.table("patients")
+            .select("*")
+            .eq("first_name", first_name)
+            .eq("last_name", last_name)
+            .eq("date_of_birth", dob)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+        return rows[0] if rows else None
+
+    def mark_appointment_rescheduled(self, appointment_id: str) -> bool:
+        response = (
+            self._client.table("appointments")
+            .update({"status": "rescheduled"})
+            .eq("id", appointment_id)
+            .execute()
+        )
+        return bool(response.data)
+
+    def insert_appointment(
+        self,
+        *,
+        patient_id: str,
+        provider_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        visit_type: str,
+    ) -> dict[str, Any]:
+        response = (
+            self._client.table("appointments")
+            .insert(
+                {
+                    "patient_id": patient_id,
+                    "provider_id": provider_id,
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "visit_type": visit_type,
+                    "status": "scheduled",
+                }
+            )
+            .execute()
+        )
+        rows = response.data or []
+        if not rows:
+            raise BookingFailedError("insert returned no rows")
+        return rows[0]
+
+
+def _build_supabase_client() -> Any:
+    load_environment()
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        raise MissingSupabaseConfigError()
+
+    from supabase import create_client  # imported lazily so tests don't need the package configured
+
+    return create_client(url, key)

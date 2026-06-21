@@ -8,6 +8,11 @@ from prescription_eligibility.errors import error_payload as prescription_error_
 from prescription_eligibility.repo import SupabasePrescriptionEligibilityRepo
 from prescription_eligibility.schemas import PrescriptionEligibilityRequest
 from prescription_eligibility.service import run_prescription_eligibility_check
+from scheduler.errors import SchedulerError
+from scheduler.errors import error_payload as scheduler_error_payload
+from scheduler.repo import SupabaseSchedulerRepo
+from scheduler.schemas import BookingRequest
+from scheduler.service import book_appointment
 from scheduling_eligibility.errors import ScheduleEligibilityError
 from scheduling_eligibility.errors import error_payload as schedule_error_payload
 from scheduling_eligibility.repo import SupabaseScheduleEligibilityRepo
@@ -95,3 +100,23 @@ async def create_prescription_eligibility_check(payload: PrescriptionEligibility
 def _prescription_eligibility_error_response(exc: PrescriptionEligibilityError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content=prescription_error_payload(exc))
 
+
+@app.post("/api/appointments")
+async def create_appointment(payload: BookingRequest):
+    try:
+        repo = SupabaseSchedulerRepo()
+        result = book_appointment(
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            dob=payload.dob,
+            provider_id=payload.provider_id,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            cancel_appointment_id=payload.cancel_appointment_id,
+            visit_type=payload.visit_type,
+            repo=repo,
+        )
+    except SchedulerError as exc:
+        return JSONResponse(status_code=exc.status_code, content=scheduler_error_payload(exc))
+
+    return result
