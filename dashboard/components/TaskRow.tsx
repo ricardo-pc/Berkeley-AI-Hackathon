@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   PlayCircle,
   CheckCheck,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 import type { Bucket, Task } from "@/lib/types";
@@ -41,6 +42,153 @@ const TYPE_TAG_STYLE: Record<string, string> = {
   message_relay: "bg-warning-soft text-accent",
   escalate: "bg-destructive-soft text-destructive",
 };
+
+interface DetailItem {
+  label: string;
+  value: string | null | undefined;
+  wide?: boolean;
+}
+
+function formatActionDateTime(iso?: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function boolLabel(value: boolean | null | undefined): string | null {
+  if (value == null) return null;
+  return value ? "Yes" : "No";
+}
+
+function actionDetailItems(task: Task): DetailItem[] {
+  const action = task.proposed_action;
+
+  if (task.task_type === "prescription_refill") {
+    const prescription = task.agent_checks?.prescription as
+      | {
+          medication?: string;
+          requested_order?: string;
+          active_dosage?: string;
+          last_visit?: string | null;
+          dosage_match?: boolean;
+          recent_visit?: boolean;
+          conflict?: boolean;
+          conflict_medication?: string | null;
+        }
+      | undefined;
+    const refill = action?.type === "prescription_refill" ? action : null;
+
+    return [
+      { label: "Drug", value: refill?.medication_name ?? prescription?.medication },
+      { label: "Dosage", value: refill?.dosage ?? prescription?.active_dosage },
+      { label: "Instructions", value: refill?.instructions, wide: true },
+      { label: "Requested order", value: prescription?.requested_order, wide: true },
+      { label: "Active Rx dosage", value: prescription?.active_dosage },
+      { label: "Dosage match", value: boolLabel(prescription?.dosage_match) },
+      { label: "Last visit", value: prescription?.last_visit },
+      { label: "Recent visit", value: boolLabel(prescription?.recent_visit) },
+      { label: "Drug conflict", value: boolLabel(prescription?.conflict) },
+      { label: "Conflict medication", value: prescription?.conflict_medication },
+      { label: "Provider ID", value: refill?.provider_id },
+      { label: "Patient ID", value: refill?.patient_id ?? task.patient_id },
+    ];
+  }
+
+  if (task.task_type === "reschedule") {
+    const scheduling = task.agent_checks?.scheduling_eligibility as
+      | {
+          conflict?: boolean;
+          conflict_reason?: string | null;
+          consecutive_reschedule_count?: number;
+          requires_manual_call?: boolean;
+          alternative_slot_found?: boolean | null;
+        }
+      | undefined;
+    const reschedule = action?.type === "reschedule" ? action : null;
+
+    return [
+      { label: "New start", value: formatActionDateTime(reschedule?.new_start) },
+      { label: "New end", value: formatActionDateTime(reschedule?.new_end) },
+      { label: "Cancel appointment", value: reschedule?.cancel_appointment_id },
+      { label: "Provider ID", value: reschedule?.provider_id },
+      { label: "Calendar conflict", value: boolLabel(scheduling?.conflict) },
+      { label: "Conflict reason", value: scheduling?.conflict_reason, wide: true },
+      {
+        label: "Consecutive reschedules",
+        value:
+          scheduling?.consecutive_reschedule_count == null
+            ? null
+            : String(scheduling.consecutive_reschedule_count),
+      },
+      { label: "Manual call required", value: boolLabel(scheduling?.requires_manual_call) },
+      { label: "Alternative slot found", value: boolLabel(scheduling?.alternative_slot_found) },
+    ];
+  }
+
+  if (task.task_type === "message_relay") {
+    const relay = action?.type === "message_relay" ? action : null;
+    const message = task.agent_checks?.message as
+      | { adverse_reaction_reported?: boolean }
+      | undefined;
+
+    return [
+      { label: "Message", value: relay?.message, wide: true },
+      { label: "Provider ID", value: relay?.provider_id },
+      { label: "Patient ID", value: relay?.patient_id ?? task.patient_id },
+      { label: "Adverse reaction reported", value: boolLabel(message?.adverse_reaction_reported) },
+    ];
+  }
+
+  return [
+    {
+      label: "Reason",
+      value: action?.type === "escalate" ? action.reason : task.flagged_reason,
+      wide: true,
+    },
+    { label: "Patient ID", value: task.patient_id },
+  ];
+}
+
+function ActionDetails({ task }: { task: Task }) {
+  const details = actionDetailItems(task).filter(
+    (item) => item.value != null && item.value !== "",
+  );
+
+  if (details.length === 0) return null;
+
+  return (
+    <section className="mt-3 rounded-[var(--radius-sm)] border border-border bg-surface p-3">
+      <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <ClipboardList className="size-3.5" aria-hidden="true" />
+        Action details
+      </h4>
+      <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+        {details.map((item) => (
+          <div
+            key={item.label}
+            className={`rounded-[var(--radius-sm)] bg-surface-muted px-3 py-2 ${
+              item.wide ? "sm:col-span-2" : ""
+            }`}
+          >
+            <dt className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              {item.label}
+            </dt>
+            <dd className="mt-0.5 break-words text-sm font-semibold text-foreground">
+              {item.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 export default function TaskRow({
   task,
@@ -184,6 +332,8 @@ export default function TaskRow({
               {describeProposedAction(task.proposed_action)}
             </p>
           </div>
+
+          <ActionDetails task={task} />
 
           {iffy && (
             <p className="mt-3 flex items-start gap-2 rounded-[var(--radius-sm)] bg-warning-soft px-3 py-2 text-sm text-accent">
