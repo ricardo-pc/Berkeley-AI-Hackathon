@@ -168,7 +168,7 @@ export default function HistoryTable({ tasks: initialTasks, usingFixtures }: His
                     </td>
                     <td className="max-w-[24rem] text-foreground">{t.agent_summary}</td>
                     <td className="max-w-[16rem] text-muted-foreground">{t.chw_note || "—"}</td>
-                    <td className="whitespace-nowrap text-muted-foreground">{t.reviewed_at ? "Riya Shah" : "—"}</td>
+                    <td className="whitespace-nowrap text-muted-foreground">{t.reviewed_at ? "Chris Kim" : "—"}</td>
                   </tr>
                 );
               })

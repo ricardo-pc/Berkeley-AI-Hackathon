@@ -9,7 +9,7 @@ export default async function HistoryPage() {
 
   return (
     <AppShell
-      chwName="Riya Shah"
+      chwName="Chris Kim"
       active="history"
       usingFixtures={false}
       title="Decision history"

@@ -65,7 +65,7 @@ export default function Sidebar({ chwName, active, pendingCount }: SidebarProps)
         </span>
         <div className="min-w-0 leading-tight">
           <p className="truncate text-sm font-bold text-navy">{chwName}</p>
-          <p className="text-xs text-muted-foreground">Community Health Worker</p>
+          <p className="text-xs text-muted-foreground">Certified Health Worker</p>
         </div>
       </div>
     </aside>

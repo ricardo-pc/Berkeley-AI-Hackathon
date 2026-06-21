@@ -167,7 +167,7 @@ export default function DashboardClient({ initialTasks, usingFixtures }: Dashboa
 
   return (
     <AppShell
-      chwName="Riya Shah"
+      chwName="Chris Kim"
       active="queue"
       pendingCount={toReview.length}
       usingFixtures={usingFixtures}
