@@ -29,8 +29,8 @@ Triage Sentinel ───────► emergency keywords? → escalate immedi
 Eligibility Agent ─────► insurance accepted + intake fields complete? → if not, escalate
    │ (OK)
    ▼
-   ├─ prescription_refill → Prescription Requirement Eligibility Agent
-   ├─ reschedule          → Schedule Adjustment Eligibility Agent
+   ├─ prescription_refill → Prescription Requirement Eligibility Service
+   ├─ reschedule          → Schedule Adjustment Eligibility Service
    └─ message_relay       → Message Relay Eligibility Agent
    │
    ▼ (eligible)
@@ -76,7 +76,7 @@ Inbound calls that don't qualify (missing required fields) go to manual review b
 
 This logic currently lives inline in `orchestrator/main_loop.py` rather than as its own agent package; pulling it into a standalone `agents/eligibility` module (mirroring the pattern the other agents use) is still open.
 
-### Prescription Requirement Eligibility Agent — ✅ built (`backend/api/prescription_eligibility/`)
+### Prescription Requirement Eligibility Service — ✅ built (`backend/orchestrator/prescription_eligibility/`)
 
 Checks whether a patient meets the requirements for a refill — answers "can this go through automatically, or does a human need to look at it first?" Four checks against the real database:
 
@@ -86,15 +86,15 @@ Checks whether a patient meets the requirements for a refill — answers "can th
 4. **Drug interaction warning** — is the patient on another medication known to conflict with this one? This is a *warning, not a blocker* — mirrors the MyChart/eClinicalWorks popup; it doesn't stop an otherwise-eligible refill, it flags it for the physician to notice.
 
 **Expected output**
-- Eligible (3 of 3 hard requirements pass): `eligible: true`, `status: "pending_approval"`, a `proposed_action` with exactly what to write on approval. A drug conflict still shows up in `agent_checks` (`conflict: true`, `conflict_medication`) without changing the outcome.
+- Eligible (3 of 3 hard requirements pass): `eligible: true`, `status: "pending_approval"`, `checks.prescription` with the structured rule results, and a `proposed_action` with exactly what to write on approval. A drug conflict still shows up in `checks.prescription` (`conflict: true`, `conflict_medication`) without changing the outcome.
 - Ineligible (any hard requirement fails): `eligible: false`, `status: "escalated"`, `proposed_action: null`, `flagged_reason` spelling out exactly which requirement(s) failed.
 
 **Test cases**
 - Pure logic: age-based window selection, a visit just inside vs. far outside the window, identical vs. changed dosage, never-prescribed-before, known conflict pair flagged vs. unrelated medication not flagged.
 - Service tests against the real seeded patients: Maria Gonzalez (eligible, Lisinopril/Amlodipine interaction surfaces as a warning), James Okafor (escalated — last visit 19 months ago, nothing upcoming), never-prescribed-before, missing patient raises a clear error.
-- Write-back tests: passing `task_id` writes into that `tasks` row and *merges* with whatever another agent already wrote there instead of erasing it; omitting `task_id` touches nothing.
+- Write-back tests: passing `task_id` writes checks into that `tasks.agent_checks` row for database compatibility, clears `tasks.agent_summary`, and *merges* with whatever another service already wrote there instead of erasing it; omitting `task_id` touches nothing.
 
-### Schedule Adjustment Eligibility Agent — ✅ built and tested live (`backend/api/scheduling_eligibility/`)
+### Schedule Adjustment Eligibility Service — ✅ built and tested live (`backend/orchestrator/scheduling_eligibility/`)
 
 Checks whether a patient meets the requirements to adjust their schedule:
 
@@ -102,15 +102,15 @@ Checks whether a patient meets the requirements to adjust their schedule:
 2. **Repeated-request pattern** — has the patient been continuously asking for a schedule change? (Sometimes done to "renew" prescription-refill eligibility without ever showing up.) More than 2 consecutive requests → escalate for a manual call to confirm the real reason.
 
 **Expected output** — one of three outcomes:
-1. **Clear to proceed** — `eligible: true`, `status: "pending_approval"`, `suggested_timeslot` confirming the requested time is bookable, `proposed_action` ready for the CHW to approve, a Claude-generated plain-English summary.
+1. **Clear to proceed** — `eligible: true`, `status: "pending_approval"`, `checks.scheduling_eligibility` with the structured rule results, `suggested_timeslot` confirming the requested time is bookable, and `proposed_action` ready for the CHW to approve.
 2. **Needs a different time** — slot taken / outside hours / holiday. `eligible: false`, but `status` stays `"pending_approval"` (not escalated — it's a routine fix). `suggested_timeslot` and `proposed_action` are both empty; finding the alternate time is the Scheduling Agent's job, not this one's.
 3. **Needs a phone call** — 3+ consecutive reschedules. `eligible: false`, `status: "escalated"`, `flagged_reason` explains why.
 
-Writes back into the same `tasks` row identified by `task_id` (status, agent_summary, agent_checks, proposed_action, flagged_reason) — merged with whatever's already there, not overwritten.
+Writes back into the same `tasks` row identified by `task_id` (status, proposed_action, flagged_reason, checks mapped into the legacy `agent_checks` column, and `agent_summary` cleared) — merged with whatever's already there, not overwritten.
 
 **Tested live against Supabase** with the Robert Martinez seeded conflict scenario — correctly detected the conflict and (once a free slot was supplied manually) correctly proposed it.
 
-### Message Relay Eligibility Agent — ✅ built (`backend/api/message_relay/`)
+### Message Relay Eligibility Agent — ✅ built (`backend/orchestrator/message_relay/`)
 
 Filters out requests that don't fall into one of: a negative status update, an unreasonable reaction to medication, any discomfort, or a request for some form of accommodation.
 
@@ -171,14 +171,14 @@ Produces a structured daily digest for the front desk: who was scheduled, what w
 Runs the demo intake JSON files end-to-end (intake validation → patient resolution → insurance check → type-specific eligibility) and is the thing that currently proves the pipeline works, scenario by scenario. It's offline-only, against in-memory demo fixtures (`orchestrator/demo_fixtures.py`) — it reuses the real, tested `scheduling_eligibility` package for reschedules, but has its own simplified inline logic for prescription refills and message relay rather than calling the live `prescription_eligibility`/`message_relay` packages against Supabase. Worth reconciling before the demo so there's one source of truth instead of two parallel implementations of the same checks.
 
 ```bash
-python3 -m orchestrator.main_loop --pretty
+python3 -m backend.orchestrator.main_loop --pretty
 ```
 
 ## Test cases (also covered by `tests/test_orchestrator_main_loop.py`)
 
 1. **Maria Gonzalez — fully automated, gets the SMS.** Lisinopril refill, insurance valid, all three hard requirements pass → `eligible: true`, `pending_approval`. Also flags a drug interaction with her active Amlodipine — a note, not a blocker. CHW approves → backend inserts the new `prescriptions` row → (once built) Confirmation Agent texts her. Proves a *warning* and an *escalation* aren't the same thing.
 2. **James Okafor — escalated, never reaches a human-approval click.** Metformin refill, last visit 19 months ago, nothing upcoming → `eligible: false`, `escalated`, `flagged_reason` spells out why. No `proposed_action`, so nothing to one-click approve.
-3. **Linda Chen — escalated before the type-specific agent even runs.** Kaiser Permanente isn't accepted → short-circuits to `escalated` before the Schedule Adjustment Eligibility Agent is even called. Shows why agent *order* matters.
+3. **Linda Chen — escalated before the type-specific service even runs.** Kaiser Permanente isn't accepted → short-circuits to `escalated` before the Schedule Adjustment Eligibility Service is even called. Shows why workflow order matters.
 4. **Robert Martinez — neither escalated nor approved, stuck in between.** Wants a slot that's already booked → `eligible: false`, `pending_approval` (not escalated) — needs a different slot, not a phone call. The Scheduling Agent (once wired into the live pipeline rather than just the orchestrator) picks this up and proposes the next open slot.
 5. **(Hypothetical) Someone who's rescheduled 3 times in a row.** Same agent, `requires_manual_call: true` this time → `escalated`, but for a different reason than Linda or James. Three patients can all land in "escalated" — the dashboard needs to surface `flagged_reason`, not just the status badge.
 6. **Priya Sharma vs. a "just calling to say hi" voicemail.** Priya's dizziness/nausea after starting Sertraline is an adverse reaction — worth relaying. A voicemail with no actionable content should get filtered out silently by the Message Relay Eligibility Agent rather than ever reaching a human.

@@ -54,10 +54,6 @@ class FakeRepo:
         self.updated_tasks.append((task_id, fields))
 
 
-def fake_summarize(checks: dict[str, Any]) -> str:
-    return "fake summary"
-
-
 def test_open_slot_is_eligible_with_a_proposed_reschedule_action():
     repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY})
 
@@ -67,15 +63,15 @@ def test_open_slot_is_eligible_with_a_proposed_reschedule_action():
         requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
-        summarize=fake_summarize,
     )
 
     assert result["eligible"] is True
     assert result["status"] == "pending_approval"
     assert result["flagged_reason"] is None
     assert result["proposed_action"]["type"] == "reschedule"
-    assert result["agent_checks"]["scheduling_eligibility"]["conflict"] is False
-    assert result["agent_summary"] == "fake summary"
+    assert "agent_checks" not in result
+    assert "agent_summary" not in result
+    assert result["checks"]["scheduling_eligibility"]["conflict"] is False
     assert result["suggested_timeslot"] == {
         "start": "2026-06-24T10:00:00+00:00",
         "end": "2026-06-24T10:30:00+00:00",
@@ -100,7 +96,6 @@ def test_conflicting_slot_gets_a_same_day_alternative_suggested():
         requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
-        summarize=fake_summarize,
     )
 
     # Original request isn't honored (eligible stays False), but the next open
@@ -113,7 +108,7 @@ def test_conflicting_slot_gets_a_same_day_alternative_suggested():
         "provider_id": "p1",
     }
     assert result["proposed_action"]["new_start"] == "2026-06-24T10:30:00+00:00"
-    assert result["agent_checks"]["scheduling_eligibility"]["alternative_slot_found"] is True
+    assert result["checks"]["scheduling_eligibility"]["alternative_slot_found"] is True
 
 
 def test_task_id_writes_the_result_back_to_the_tasks_table():
@@ -126,15 +121,14 @@ def test_task_id_writes_the_result_back_to_the_tasks_table():
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
         task_id="task-1",
-        summarize=fake_summarize,
     )
 
     assert len(repo.updated_tasks) == 1
     written_task_id, written_fields = repo.updated_tasks[0]
     assert written_task_id == "task-1"
     assert written_fields["status"] == result["status"]
-    assert written_fields["agent_summary"] == result["agent_summary"]
-    assert written_fields["agent_checks"] == result["agent_checks"]
+    assert written_fields["agent_summary"] is None
+    assert written_fields["agent_checks"] == result["checks"]
     assert written_fields["proposed_action"] == result["proposed_action"]
     assert written_fields["flagged_reason"] == result["flagged_reason"]
 
@@ -152,7 +146,6 @@ def test_write_back_merges_with_another_agents_existing_checks():
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
         task_id="task-1",
-        summarize=fake_summarize,
     )
 
     _, written_fields = repo.updated_tasks[0]
@@ -169,7 +162,6 @@ def test_no_task_id_does_not_touch_the_tasks_table():
         requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
-        summarize=fake_summarize,
     )
 
     assert repo.updated_tasks == []
@@ -186,7 +178,6 @@ def test_no_alternative_found_within_search_window_escalates():
         requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
-        summarize=fake_summarize,
     )
 
     assert result["eligible"] is False
@@ -194,7 +185,8 @@ def test_no_alternative_found_within_search_window_escalates():
     assert "manual scheduling" in result["flagged_reason"]
     assert result["suggested_timeslot"] is None
     assert result["proposed_action"] is None
-    assert result["agent_checks"]["scheduling_eligibility"]["alternative_slot_found"] is False
+    assert result["checks"]["scheduling_eligibility"]["conflict"] is True
+    assert result["checks"]["scheduling_eligibility"]["alternative_slot_found"] is False
 
 
 def test_missing_patient_raises_a_not_found_error():
@@ -207,7 +199,6 @@ def test_missing_patient_raises_a_not_found_error():
             requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
             requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
             repo=repo,
-            summarize=fake_summarize,
         )
 
 
@@ -223,13 +214,12 @@ def test_three_consecutive_reschedules_escalates_for_a_manual_call():
         requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
         requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
         repo=repo,
-        summarize=fake_summarize,
     )
 
     assert result["eligible"] is False
     assert result["status"] == "escalated"
     assert "manual" in result["flagged_reason"] or "call" in result["flagged_reason"]
-    assert result["agent_checks"]["scheduling_eligibility"]["consecutive_reschedule_count"] == 2
+    assert result["checks"]["scheduling_eligibility"]["consecutive_reschedule_count"] == 2
     assert result["proposed_action"] is None
 
 
@@ -243,5 +233,4 @@ def test_missing_provider_raises_a_not_found_error():
             requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
             requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
             repo=repo,
-            summarize=fake_summarize,
         )

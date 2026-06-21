@@ -8,6 +8,7 @@ from prescription_eligibility.checks import (
     check_recent_visit,
     check_upcoming_visit,
     determine_visit_window_months,
+    find_identical_prior_prescription,
 )
 
 NOW = datetime.fromisoformat("2026-06-20T00:00:00+00:00")
@@ -84,6 +85,41 @@ def test_identical_prior_prescription_is_a_dosage_match():
 
     assert ever_prescribed is True
     assert dosage_match is True
+
+
+def test_identical_prior_prescription_returns_the_latest_exact_db_row():
+    prior = [
+        {
+            "id": "old-dose",
+            "medication_name": "Lisinopril",
+            "dosage": "5mg",
+            "instructions": "once daily with food",
+            "prescribed_at": "2026-02-01T10:00:00+00:00",
+        },
+        {
+            "id": "older-match",
+            "medication_name": "Lisinopril",
+            "dosage": "10mg",
+            "instructions": "once daily with food",
+            "prescribed_at": "2026-01-01T10:00:00+00:00",
+        },
+        {
+            "id": "latest-match",
+            "medication_name": "Lisinopril",
+            "dosage": "10mg",
+            "instructions": "once daily with food",
+            "prescribed_at": "2026-03-01T10:00:00+00:00",
+        },
+    ]
+
+    match = find_identical_prior_prescription(
+        medication_name="Lisinopril",
+        dosage="10mg",
+        instructions="once daily with food",
+        prior_prescriptions=prior,
+    )
+
+    assert match["id"] == "latest-match"
 
 
 def test_different_dosage_is_not_a_match_even_if_prescribed_before():

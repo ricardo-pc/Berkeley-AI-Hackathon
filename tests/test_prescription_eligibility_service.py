@@ -41,10 +41,6 @@ class FakeRepo:
         self.updated_tasks.append((task_id, fields))
 
 
-def fake_summarize(checks: dict[str, Any]) -> str:
-    return "fake summary"
-
-
 def test_eligible_refill_still_surfaces_a_conflict_warning():
     """Mirrors Maria Gonzalez's seeded scenario: eligible, but flagged for physician review."""
     repo = FakeRepo(
@@ -72,14 +68,16 @@ def test_eligible_refill_still_surfaces_a_conflict_warning():
         instructions="once daily with food",
         repo=repo,
         now=NOW,
-        summarize=fake_summarize,
     )
 
     assert result["eligible"] is True
     assert result["status"] == "pending_approval"
     assert result["flagged_reason"] is None
-    assert result["agent_checks"]["prescription_eligibility"]["conflict"] is True
-    assert result["agent_checks"]["prescription_eligibility"]["conflict_medication"] == "Amlodipine"
+    assert "agent_checks" not in result
+    assert "agent_summary" not in result
+    assert result["checks"]["prescription"]["eligible"] is True
+    assert result["checks"]["prescription"]["conflict"] is True
+    assert result["checks"]["prescription"]["conflict_medication"] == "Amlodipine"
     assert result["proposed_action"] == {
         "type": "prescription_refill",
         "medication_name": "Lisinopril",
@@ -113,7 +111,6 @@ def test_visit_too_long_ago_escalates_without_a_proposed_action():
         instructions="twice daily with meals",
         repo=repo,
         now=NOW,
-        summarize=fake_summarize,
     )
 
     assert result["eligible"] is False
@@ -140,7 +137,6 @@ def test_never_prescribed_before_escalates():
         instructions="once daily at bedtime",
         repo=repo,
         now=NOW,
-        summarize=fake_summarize,
     )
 
     assert result["eligible"] is False
@@ -176,15 +172,16 @@ def test_task_id_writes_the_result_back_and_merges_existing_checks():
         repo=repo,
         task_id="task-1",
         now=NOW,
-        summarize=fake_summarize,
     )
 
     assert len(repo.updated_tasks) == 1
     written_task_id, written_fields = repo.updated_tasks[0]
     assert written_task_id == "task-1"
     assert written_fields["status"] == result["status"]
+    assert written_fields["agent_summary"] is None
     assert written_fields["agent_checks"]["insurance_eligibility"] == {"valid": True}
-    assert "prescription_eligibility" in written_fields["agent_checks"]
+    assert "prescription" in written_fields["agent_checks"]
+    assert "prescription_eligibility" not in written_fields["agent_checks"]
 
 
 def test_no_task_id_does_not_touch_the_tasks_table():
@@ -197,7 +194,6 @@ def test_no_task_id_does_not_touch_the_tasks_table():
         instructions="once daily with food",
         repo=repo,
         now=NOW,
-        summarize=fake_summarize,
     )
 
     assert repo.updated_tasks == []
@@ -214,5 +210,4 @@ def test_missing_patient_raises_a_not_found_error():
             instructions="once daily with food",
             repo=repo,
             now=NOW,
-            summarize=fake_summarize,
         )

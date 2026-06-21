@@ -94,7 +94,7 @@ alter table patients add column preferred_provider_id uuid references providers(
 ```
 ---
 ### 2.4 appointments
-The clinic calendar. Links a patient to a provider at a specific time. The Scheduling Agent reads this to detect conflicts and writes to it when a reschedule is approved. The Prescription Agent also reads this to check whether a patient has visited within the required 6/12-month window.
+The clinic calendar. Links a patient to a provider at a specific time. The Scheduling Agent reads this to detect conflicts and writes to it when a reschedule is approved. The prescription eligibility service also reads this to check whether a patient has visited within the required 6/12-month window.
 | Column | Type | Description | Notes |
 |---|---|---|---|
 | `id` | uuid | Primary key | Auto-generated |
@@ -119,7 +119,7 @@ create table appointments (
 ```
 ---
 ### 2.5 prescriptions
-Medication history per patient. The Prescription Agent reads this to verify: the medication was previously prescribed at the same dosage, the prescribing doctor matches, and no conflicting medications are currently active.
+Medication history per patient. The prescription eligibility service reads this to verify: the medication was previously prescribed at the same dosage, the prescribing doctor matches, and no conflicting medications are currently active.
 | Column | Type | Description | Notes |
 |---|---|---|---|
 | `id` | uuid | Primary key | Auto-generated |
@@ -252,7 +252,7 @@ tasks
 |---|---|---|
 | Intake Agent | `voicemails`, `patients` | `voicemails.transcript`, `voicemails.patient_id`, `voicemails.intent` |
 | Eligibility Agent | `patients.insurance_*` | `tasks.agent_checks` (insurance result) |
-| Prescription Agent | `prescriptions`, `appointments` | `tasks.agent_checks` (refill eligibility) |
+| Prescription eligibility service | `prescriptions`, `appointments` | `tasks.agent_checks` (refill eligibility; legacy column name) |
 | Scheduling Agent | `appointments`, `providers.availability`, `patients.preferred_provider_id` (defaults the provider when the caller doesn't name one) | `tasks.proposed_action` (suggested slot) |
 | Message Relay Agent | `voicemails.transcript` | `messages` row, `tasks.proposed_action` |
 | Triage Sentinel | `voicemails.transcript` | `tasks.status = escalated`, `tasks.flagged_reason` |

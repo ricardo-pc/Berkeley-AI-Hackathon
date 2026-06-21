@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
+
+ORCHESTRATOR_ROOT = pathlib.Path(__file__).resolve().parents[1] / "orchestrator"
+sys.path.insert(0, str(ORCHESTRATOR_ROOT))
 
 from message_relay.repo import SupabaseMessageRelayRepo
 from message_relay.service import run_message_relay_check

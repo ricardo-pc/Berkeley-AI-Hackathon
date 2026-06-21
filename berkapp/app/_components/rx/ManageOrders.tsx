@@ -8,7 +8,7 @@ import type { Medication, Patient, Problem } from "../../_lib/types";
 // patient's real data (identity, coded problems, and current medications) from
 // Supabase. The surrounding chrome (tabs, toolbar, footer) is illustrative.
 
-const TABS = ["Medication Summary", "Add New Rx", "Add New Order"];
+const TABS = ["Medication Summary", "Rx", "Add New Order"];
 
 export function ManageOrders({ patient }: { patient: Patient | null }) {
   const router = useRouter();

@@ -2,28 +2,26 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, UploadFile
+API_ROOT = Path(__file__).resolve().parent
+ORCHESTRATOR_ROOT = API_ROOT.parent / "orchestrator"
+sys.path.insert(0, str(ORCHESTRATOR_ROOT))
+
+from fastapi import BackgroundTasks, FastAPI, File, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from confirmation.errors import ConfirmationError
-from confirmation.service import send_confirmation, send_denial_notice
+from confirmation.service import send_confirmation
 from intake.errors import IntakeAgentError
 from intake.errors import error_payload as intake_error_payload
+from intake.orchestrator import route_workflow_payload_to_orchestrator
 from intake.schemas import IntakeExtraction, to_plain_dict as intake_to_plain_dict
-from intake.service import run_intake_extraction
-from message_relay.errors import MessageRelayError
-from message_relay.errors import error_payload as message_relay_error_payload
-from message_relay.repo import SupabaseMessageRelayRepo
-from message_relay.service import run_message_relay_check
-from prescription_eligibility.errors import PrescriptionEligibilityError
-from prescription_eligibility.errors import error_payload as prescription_error_payload
-from prescription_eligibility.repo import SupabasePrescriptionEligibilityRepo
-from prescription_eligibility.service import run_prescription_eligibility_check
+from intake.service import run_intake_extraction, run_voicemail_intake_workflow
 from prescription_fulfillment.errors import PrescriptionFulfillmentError
 from prescription_fulfillment.errors import error_payload as fulfillment_error_payload
 from prescription_fulfillment.repo import SupabasePrescriptionFulfillmentRepo
@@ -34,22 +32,20 @@ from scheduler.errors import error_payload as scheduler_error_payload
 from scheduler.repo import SupabaseSchedulerRepo
 from scheduler.schemas import BookingRequest
 from scheduler.service import book_appointment
-from scheduling_eligibility.errors import ScheduleEligibilityError
-from scheduling_eligibility.errors import error_payload as schedule_error_payload
-from scheduling_eligibility.repo import SupabaseScheduleEligibilityRepo
-from scheduling_eligibility.schemas import ScheduleEligibilityRequest
-from scheduling_eligibility.service import run_schedule_eligibility_check
 from summary.claude_summary import generate_narrative
 from summary.errors import SummaryError
 from summary.errors import error_payload as summary_error_payload
 from summary.repo import SupabaseSummaryRepo
 from summary.service import build_daily_digest
+from telephony.config import get_telephony_config
+from telephony.service import process_voicemail_recording_safe
+from telephony.signature import public_base_url, request_is_authentic
+from telephony.twiml import build_goodbye_twiml, build_voicemail_twiml
 from transcription.errors import InvalidAudioError, TranscriptionError, error_payload
 from transcription.schemas import TranscriptionResponse, to_plain_dict
 from transcription.service import normalize_deepgram_response, transcribe_audio
 
 
-API_ROOT = Path(__file__).resolve().parent
 JAMES_MOCK_TRANSCRIPTION_PATH = API_ROOT / "contracts" / "james_mock_transcription.json"
 
 
@@ -94,13 +90,11 @@ async def create_voicemail_intake(file: UploadFile | None = File(default=None)):
 
     try:
         audio_bytes = await file.read()
-        transcription = await transcribe_audio(
+        transcription, intake, orchestrator_results = await run_voicemail_intake_workflow(
             audio_bytes,
             filename=file.filename,
             content_type=file.content_type,
         )
-        stt_json = to_plain_dict(transcription)
-        intake = run_intake_extraction(stt_json)
     except TranscriptionError as exc:
         return _error_response(exc)
     except IntakeAgentError as exc:
@@ -109,6 +103,7 @@ async def create_voicemail_intake(file: UploadFile | None = File(default=None)):
     return {
         "transcript": _compact_transcript(transcription.transcript),
         "intake": _sanitize_intake(intake),
+        "orchestrator_results": orchestrator_results,
     }
 
 
@@ -167,10 +162,6 @@ def _intake_error_response(exc: IntakeAgentError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content=intake_error_payload(exc))
 
 
-def _api_error_response(status_code: int, code: str, message: str) -> JSONResponse:
-    return JSONResponse(status_code=status_code, content={"error": {"code": code, "message": message}})
-
-
 def _compact_transcript(transcript: str) -> str:
     return re.sub(r"\s+", " ", transcript).strip()
 
@@ -188,78 +179,20 @@ def _load_james_mock_transcription() -> TranscriptionResponse:
 
 @app.post("/api/schedule-eligibility")
 async def create_schedule_eligibility_check(payload: IntakeWorkflowRequest):
-    if _normalize_intake_request_type(payload.intake.request.type) != "reschedule":
-        return _api_error_response(
-            400,
-            "wrong_request_type",
-            "Schedule eligibility requires intake.request.type to be reschedule.",
-        )
-    if not payload.provider_id or not payload.requested_start or not payload.requested_end:
-        return _api_error_response(
-            400,
-            "missing_schedule_fields",
-            "provider_id, requested_start, and requested_end are required for schedule eligibility.",
-        )
-    patient_or_error = _resolve_patient_from_intake(payload.intake)
-    if isinstance(patient_or_error, JSONResponse):
-        return patient_or_error
-
-    try:
-        repo = SupabaseScheduleEligibilityRepo()
-        result = run_schedule_eligibility_check(
-            patient_id=patient_or_error["id"],
-            provider_id=payload.provider_id,
-            requested_start=payload.requested_start,
-            requested_end=payload.requested_end,
-            cancel_appointment_id=payload.cancel_appointment_id,
-            task_id=payload.task_id,
-            repo=repo,
-        )
-    except ScheduleEligibilityError as exc:
-        return _schedule_eligibility_error_response(exc)
-
-    result["denial_notice"] = _try_send_denial_notice("reschedule", result)
-    return result
-
-
-def _schedule_eligibility_error_response(exc: ScheduleEligibilityError) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content=schedule_error_payload(exc))
+    return await route_workflow_payload_to_orchestrator(
+        payload.intake,
+        path="/api/reschedule",
+        task_id=payload.task_id,
+    )
 
 
 @app.post("/api/prescription-eligibility")
 async def create_prescription_eligibility_check(payload: IntakeWorkflowRequest):
-    if _normalize_intake_request_type(payload.intake.request.type) != "prescription_refill":
-        return _api_error_response(
-            400,
-            "wrong_request_type",
-            "Prescription eligibility requires intake.request.type to be refill.",
-        )
-    prescription_or_error = _prescription_from_intake(payload.intake)
-    if isinstance(prescription_or_error, JSONResponse):
-        return prescription_or_error
-    patient_or_error = _resolve_patient_from_intake(payload.intake)
-    if isinstance(patient_or_error, JSONResponse):
-        return patient_or_error
-
-    try:
-        repo = SupabasePrescriptionEligibilityRepo()
-        result = run_prescription_eligibility_check(
-            patient_id=patient_or_error["id"],
-            medication_name=prescription_or_error["medication_name"],
-            dosage=prescription_or_error["dosage"],
-            instructions=prescription_or_error["instructions"],
-            task_id=payload.task_id,
-            repo=repo,
-        )
-    except PrescriptionEligibilityError as exc:
-        return _prescription_eligibility_error_response(exc)
-
-    result["denial_notice"] = _try_send_denial_notice("prescription_refill", result)
-    return result
-
-
-def _prescription_eligibility_error_response(exc: PrescriptionEligibilityError) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content=prescription_error_payload(exc))
+    return await route_workflow_payload_to_orchestrator(
+        payload.intake,
+        path="/api/refill",
+        task_id=payload.task_id,
+    )
 
 
 @app.post("/api/appointments")
@@ -323,156 +256,13 @@ def _try_send_confirmation(task_type: str, result: dict) -> dict | None:
     return {"sent": sent is not None, **(sent or {})}
 
 
-def _try_send_denial_notice(task_type: str, result: dict) -> dict | None:
-    """Symmetric counterpart to _try_send_confirmation -- fires when an eligibility
-    check escalates instead of approving. Best-effort: never raises into the caller.
-    """
-    if result.get("status") != "escalated":
-        return None
-
-    patient = result.get("patient") or {}
-    phone_number = patient.get("phone")
-    if not phone_number:
-        return {"sent": False, "reason": "no phone number on file"}
-
-    try:
-        sent = send_denial_notice(
-            task_type=task_type, phone_number=phone_number, first_name=patient.get("first_name")
-        )
-    except ConfirmationError as exc:
-        return {"sent": False, "reason": str(exc)}
-
-    return {"sent": sent is not None, **(sent or {})}
-
-
 @app.post("/api/message-relay")
 async def create_message_relay_check(payload: IntakeWorkflowRequest):
-    if _normalize_intake_request_type(payload.intake.request.type) != "message_relay":
-        return _api_error_response(
-            400,
-            "wrong_request_type",
-            "Message relay requires intake.request.type to be message_relay.",
-        )
-    message = _compact_transcript(payload.intake.request.details or payload.intake.transcript)
-    if not message:
-        return _api_error_response(400, "missing_message", "Intake request details or transcript are required.")
-    patient_or_error = _resolve_patient_from_intake(payload.intake)
-    if isinstance(patient_or_error, JSONResponse):
-        return patient_or_error
-
-    try:
-        repo = SupabaseMessageRelayRepo()
-        result = run_message_relay_check(
-            patient_id=patient_or_error["id"],
-            first_name=payload.intake.first_name,
-            last_name=payload.intake.last_name,
-            dob=payload.intake.date_of_birth,
-            message=message,
-            task_id=payload.task_id,
-            repo=repo,
-        )
-    except MessageRelayError as exc:
-        return JSONResponse(status_code=exc.status_code, content=message_relay_error_payload(exc))
-
-    return result
-
-
-def _resolve_patient_from_intake(intake: IntakeExtraction) -> dict[str, Any] | JSONResponse:
-    missing = [
-        field
-        for field, value in {
-            "first_name": intake.first_name,
-            "last_name": intake.last_name,
-            "date_of_birth": intake.date_of_birth,
-        }.items()
-        if not value
-    ]
-    if missing:
-        return _api_error_response(
-            400,
-            "missing_patient_identity",
-            f"Intake is missing required patient identity fields: {', '.join(missing)}.",
-        )
-
-    try:
-        repo = SupabaseSchedulerRepo()
-        patient = repo.find_patient(intake.first_name or "", intake.last_name or "", intake.date_of_birth or "")
-    except SchedulerError as exc:
-        return JSONResponse(status_code=exc.status_code, content=scheduler_error_payload(exc))
-
-    if not patient:
-        return _api_error_response(
-            404,
-            "patient_not_found",
-            "No patient matched intake first_name, last_name, and date_of_birth.",
-        )
-    return patient
-
-
-def _normalize_intake_request_type(value: str | None) -> str:
-    aliases = {
-        "refill": "prescription_refill",
-        "prescription_refill": "prescription_refill",
-        "reschedule": "reschedule",
-        "message_relay": "message_relay",
-    }
-    return aliases.get((value or "").strip().lower(), "unknown")
-
-
-def _prescription_from_intake(intake: IntakeExtraction) -> dict[str, str] | JSONResponse:
-    details = _compact_transcript(intake.request.details)
-    order = next((item.strip() for item in intake.request.orders if item.strip()), "")
-    if not order:
-        return _api_error_response(
-            400,
-            "missing_prescription_order",
-            "Intake request.orders must include the requested medication.",
-        )
-
-    dosage = _extract_dosage(f"{order} {details}")
-    if not dosage:
-        return _api_error_response(
-            400,
-            "missing_prescription_dosage",
-            "Intake request details must include the requested prescription dosage.",
-        )
-
-    return {
-        "medication_name": _strip_dosage(order),
-        "dosage": dosage,
-        "instructions": _extract_instructions(details, dosage),
-    }
-
-
-def _extract_dosage(text: str) -> str | None:
-    match = re.search(r"\b(\d+(?:\.\d+)?)\s*(mg|milligrams?|g|grams?)\b", text, re.IGNORECASE)
-    if not match:
-        return None
-    amount = match.group(1)
-    unit = match.group(2).lower()
-    normalized_unit = "mg" if unit.startswith("milligram") else "g" if unit.startswith("gram") else unit
-    return f"{amount}{normalized_unit}"
-
-
-def _strip_dosage(text: str) -> str:
-    return re.sub(r"\b\d+(?:\.\d+)?\s*(?:mg|milligrams?|g|grams?)\b", "", text, flags=re.IGNORECASE).strip(" ,-")
-
-
-def _extract_instructions(details: str, dosage: str) -> str:
-    if not details:
-        return ""
-    dosage_match = re.fullmatch(r"(\d+(?:\.\d+)?)(mg|g)", dosage, re.IGNORECASE)
-    if not dosage_match:
-        return details
-    amount, unit = dosage_match.groups()
-    unit_pattern = r"(?:mg|milligrams?)" if unit.lower() == "mg" else r"(?:g|grams?)"
-    dosage_pattern = rf"\b{re.escape(amount)}\s*{unit_pattern}\b"
-    match = re.search(dosage_pattern, details, re.IGNORECASE)
-    if match:
-        after_dosage = details[match.end() :].strip(" ,.-")
-        if after_dosage:
-            return after_dosage
-    return details
+    return await route_workflow_payload_to_orchestrator(
+        payload.intake,
+        path="/api/message-relay",
+        task_id=payload.task_id,
+    )
 
 
 @app.get("/api/summary")
@@ -484,3 +274,80 @@ async def get_daily_digest(since: datetime | None = None):
         return JSONResponse(status_code=exc.status_code, content=summary_error_payload(exc))
 
     return result
+
+
+# --- Telephony: phone call -> voicemail -> STT -> intake --------------------
+
+TWIML_MEDIA_TYPE = "application/xml"
+
+
+async def _authenticate_telephony_request(request: Request, form) -> bool:
+    config = get_telephony_config()
+    return request_is_authentic(
+        url=_telephony_request_url(request, config),
+        params=form,
+        signature=request.headers.get(_signature_header(config.provider), ""),
+        config=config,
+    )
+
+
+def _telephony_request_url(request: Request, config) -> str:
+    """Exact URL the provider used to sign the request."""
+    if config.public_base_url:
+        url = f"{config.public_base_url}{request.url.path}"
+        if request.url.query:
+            url = f"{url}?{request.url.query}"
+        return url
+    return str(request.url)
+
+
+def _signature_header(provider: str) -> str:
+    if provider == "signalwire":
+        return "X-SignalWire-Signature"
+    return "X-Twilio-Signature"
+
+
+@app.post("/api/telephony/voice")
+async def telephony_voice(request: Request):
+    config = get_telephony_config()
+    form = await request.form()
+    if not await _authenticate_telephony_request(request, form):
+        return Response(status_code=403)
+
+    base = public_base_url(config, fallback=str(request.base_url))
+    twiml = build_voicemail_twiml(
+        action_url=f"{base}/api/telephony/recording-complete",
+        recording_status_callback_url=f"{base}/api/telephony/recording",
+        greeting=config.greeting,
+        max_length_seconds=config.max_recording_seconds,
+    )
+    return Response(content=twiml, media_type=TWIML_MEDIA_TYPE)
+
+
+@app.post("/api/telephony/recording-complete")
+async def telephony_recording_complete(request: Request):
+    form = await request.form()
+    if not await _authenticate_telephony_request(request, form):
+        return Response(status_code=403)
+    return Response(content=build_goodbye_twiml(), media_type=TWIML_MEDIA_TYPE)
+
+
+@app.post("/api/telephony/recording")
+async def telephony_recording(request: Request, background_tasks: BackgroundTasks):
+    form = await request.form()
+    if not await _authenticate_telephony_request(request, form):
+        return Response(status_code=403)
+
+    recording_url = form.get("RecordingUrl")
+    if not recording_url:
+        return Response(status_code=204)
+
+    background_tasks.add_task(
+        process_voicemail_recording_safe,
+        recording_url=recording_url,
+        call_sid=form.get("CallSid"),
+        recording_sid=form.get("RecordingSid"),
+        from_number=form.get("From"),
+        config=get_telephony_config(),
+    )
+    return Response(status_code=204)

@@ -61,7 +61,7 @@ export function TopBar() {
       <div className="flex items-center justify-between bg-gradient-to-b from-teal-700 to-teal-900 px-3 text-white">
         <div className="flex items-center gap-4">
           <span className="py-1.5 text-sm font-bold tracking-tight">
-            eClinical<span className="text-teal-300">Works</span>
+            eGyulical<span className="text-teal-300">Works</span>
             <sup className="ml-0.5 text-[8px]">®</sup>
           </span>
           <nav className="hidden gap-1 md:flex">
