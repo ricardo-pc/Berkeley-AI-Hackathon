@@ -11,7 +11,7 @@ API_ROOT = Path(__file__).resolve().parent
 ORCHESTRATOR_ROOT = API_ROOT.parent / "orchestrator"
 sys.path.insert(0, str(ORCHESTRATOR_ROOT))
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -37,6 +37,10 @@ from summary.errors import SummaryError
 from summary.errors import error_payload as summary_error_payload
 from summary.repo import SupabaseSummaryRepo
 from summary.service import build_daily_digest
+from telephony.config import get_telephony_config
+from telephony.service import process_voicemail_recording_safe
+from telephony.signature import public_base_url, request_is_authentic
+from telephony.twiml import build_goodbye_twiml, build_voicemail_twiml
 from transcription.errors import InvalidAudioError, TranscriptionError, error_payload
 from transcription.schemas import TranscriptionResponse, to_plain_dict
 from transcription.service import normalize_deepgram_response, transcribe_audio
@@ -270,3 +274,80 @@ async def get_daily_digest(since: datetime | None = None):
         return JSONResponse(status_code=exc.status_code, content=summary_error_payload(exc))
 
     return result
+
+
+# --- Telephony: phone call -> voicemail -> STT -> intake --------------------
+
+TWIML_MEDIA_TYPE = "application/xml"
+
+
+async def _authenticate_telephony_request(request: Request, form) -> bool:
+    config = get_telephony_config()
+    return request_is_authentic(
+        url=_telephony_request_url(request, config),
+        params=form,
+        signature=request.headers.get(_signature_header(config.provider), ""),
+        config=config,
+    )
+
+
+def _telephony_request_url(request: Request, config) -> str:
+    """Exact URL the provider used to sign the request."""
+    if config.public_base_url:
+        url = f"{config.public_base_url}{request.url.path}"
+        if request.url.query:
+            url = f"{url}?{request.url.query}"
+        return url
+    return str(request.url)
+
+
+def _signature_header(provider: str) -> str:
+    if provider == "signalwire":
+        return "X-SignalWire-Signature"
+    return "X-Twilio-Signature"
+
+
+@app.post("/api/telephony/voice")
+async def telephony_voice(request: Request):
+    config = get_telephony_config()
+    form = await request.form()
+    if not await _authenticate_telephony_request(request, form):
+        return Response(status_code=403)
+
+    base = public_base_url(config, fallback=str(request.base_url))
+    twiml = build_voicemail_twiml(
+        action_url=f"{base}/api/telephony/recording-complete",
+        recording_status_callback_url=f"{base}/api/telephony/recording",
+        greeting=config.greeting,
+        max_length_seconds=config.max_recording_seconds,
+    )
+    return Response(content=twiml, media_type=TWIML_MEDIA_TYPE)
+
+
+@app.post("/api/telephony/recording-complete")
+async def telephony_recording_complete(request: Request):
+    form = await request.form()
+    if not await _authenticate_telephony_request(request, form):
+        return Response(status_code=403)
+    return Response(content=build_goodbye_twiml(), media_type=TWIML_MEDIA_TYPE)
+
+
+@app.post("/api/telephony/recording")
+async def telephony_recording(request: Request, background_tasks: BackgroundTasks):
+    form = await request.form()
+    if not await _authenticate_telephony_request(request, form):
+        return Response(status_code=403)
+
+    recording_url = form.get("RecordingUrl")
+    if not recording_url:
+        return Response(status_code=204)
+
+    background_tasks.add_task(
+        process_voicemail_recording_safe,
+        recording_url=recording_url,
+        call_sid=form.get("CallSid"),
+        recording_sid=form.get("RecordingSid"),
+        from_number=form.get("From"),
+        config=get_telephony_config(),
+    )
+    return Response(status_code=204)

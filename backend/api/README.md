@@ -64,6 +64,83 @@ curl -X POST http://localhost:8000/api/intake \
 
 `/api/intake` and `/api/voicemail/intake` return sanitized intake output: structured patient fields, request content detection, preferred-time objects, missing fields, and compact transcript text.
 
+## Telephony voicemail (phone call → STT → intake)
+
+`telephony/` turns a real phone call into an intake record. Twilio remains the
+default provider, and SignalWire can be enabled with `TELEPHONY_PROVIDER`.
+Both providers answer the call, record a voicemail, call us back when the audio
+is ready, then we download the recording, run Deepgram transcription, and feed
+the result into the intake agent (`backend/api/intake`).
+
+### Routes
+
+| Route | Purpose | Configure in provider as |
+| --- | --- | --- |
+| `POST /api/telephony/voice` | Greets the caller and starts `<Record>`. | Phone number **A call comes in** webhook |
+| `POST /api/telephony/recording-complete` | Ends the call gracefully after recording. | Set automatically (the `<Record action>`) |
+| `POST /api/telephony/recording` | Async: downloads the recording, runs STT + intake, writes JSON. | Set automatically (`recordingStatusCallback`) |
+
+You only point the provider at `/api/telephony/voice`; the other two URLs are
+emitted inside the TwiML/cXML, built from `PUBLIC_BASE_URL` (or the request host).
+
+Results are written to `VOICEMAIL_OUTPUT_DIR` (default `telephony_output/`) as
+`<RecordingSid>.stt.json`, `.intake.json`, and `.voicemail.json`.
+
+### Env
+
+Add to `.env` (see `.env.example`):
+
+```
+TELEPHONY_PROVIDER=twilio
+PUBLIC_BASE_URL=https://<your-ngrok-or-app-host>
+TELEPHONY_VALIDATE_SIGNATURE=true   # set false only for local curl testing
+
+# Twilio mode
+TWILIO_ACCOUNT_SID=ACxxxx...
+TWILIO_AUTH_TOKEN=xxxx...
+
+# SignalWire mode
+SIGNALWIRE_PROJECT_ID=xxxx...
+SIGNALWIRE_API_TOKEN=PTxxxx...
+SIGNALWIRE_SIGNING_KEY=xxxx...
+```
+
+`ANTHROPIC_API_KEY` and `DEEPGRAM_API_KEY` must also be set (intake + STT).
+To revert from SignalWire back to Twilio, set `TELEPHONY_PROVIDER=twilio`,
+restart `uvicorn`, and point the Twilio number at the same `/api/telephony/voice`
+route.
+
+### Local testing with ngrok
+
+```bash
+cd backend/api
+uvicorn main:app --reload --port 8000
+ngrok http 8000          # in another terminal; copy the https URL into PUBLIC_BASE_URL, then restart uvicorn
+```
+
+For Twilio, open the [Twilio Console](https://console.twilio.com/) → **Phone
+Numbers → Manage → Active numbers → (your number) → Voice Configuration**:
+
+- **A call comes in** → Webhook → `https://<PUBLIC_BASE_URL>/api/telephony/voice` → HTTP **POST** → Save.
+
+For SignalWire, set `TELEPHONY_PROVIDER=signalwire`, fill
+`SIGNALWIRE_PROJECT_ID`, `SIGNALWIRE_API_TOKEN`, and `SIGNALWIRE_SIGNING_KEY`,
+then configure the SignalWire phone number voice/cXML webhook to:
+
+```
+POST https://<PUBLIC_BASE_URL>/api/telephony/voice
+```
+
+Call the number, leave a message, and watch the uvicorn logs; the intake JSON
+lands in `telephony_output/`.
+
+You can smoke-test the greeting without a phone (signature off):
+
+```bash
+TELEPHONY_VALIDATE_SIGNATURE=false uvicorn main:app --port 8000
+curl -X POST http://localhost:8000/api/telephony/voice -d "CallSid=CAtest"
+```
+
 ## Schedule Adjustment Eligibility Service
 
 `../orchestrator/scheduling_eligibility/` checks whether a reschedule request can proceed:
