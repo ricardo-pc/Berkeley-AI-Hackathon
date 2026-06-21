@@ -25,6 +25,7 @@ Every other table either references this directly or resolves to it through a jo
 | `insurance_plan` | text | Plan name | e.g. Blue Cross PPO |
 | `insurance_id` | text | Member ID | From patient's insurance card |
 | `insurance_valid` | boolean | Accepted by clinic | Set by Eligibility Agent |
+| `preferred_provider_id` | uuid | FK → providers.id | Patient's preferred physician; nullable. Added via `alter table` after `providers` exists — see section 2.3 |
 | `created_at` | timestamptz | Row created | Auto-generated |
 ```sql
 create table patients (
@@ -86,6 +87,10 @@ create table providers (
   }',
   created_at    timestamptz default now()
 );
+```
+`patients.preferred_provider_id` references this table, so it's added here, right after `providers` exists:
+```sql
+alter table patients add column preferred_provider_id uuid references providers(id);
 ```
 ---
 ### 2.4 appointments
@@ -228,7 +233,8 @@ patients
     ├──► appointments.patient_id
     ├──► prescriptions.patient_id
     ├──► tasks.patient_id
-    └──► messages.patient_id
+    ├──► messages.patient_id
+    └──► providers.id (patients.preferred_provider_id, nullable)
 providers
     │
     ├──► appointments.provider_id
@@ -239,7 +245,7 @@ voicemails
 tasks
     └──► messages.task_id
 ```
-`patients` never references `providers` directly. The connection always goes through `appointments`, `prescriptions`, or `messages`.
+`patients.preferred_provider_id` is the one direct link from `patients` to `providers` — every other connection between them goes through `appointments`, `prescriptions`, or `messages`.
 ---
 ## 4. Agent → Table Map
 | Agent | Reads | Writes |
@@ -247,7 +253,7 @@ tasks
 | Intake Agent | `voicemails`, `patients` | `voicemails.transcript`, `voicemails.patient_id`, `voicemails.intent` |
 | Eligibility Agent | `patients.insurance_*` | `tasks.agent_checks` (insurance result) |
 | Prescription Agent | `prescriptions`, `appointments` | `tasks.agent_checks` (refill eligibility) |
-| Scheduling Agent | `appointments`, `providers.availability` | `tasks.proposed_action` (suggested slot) |
+| Scheduling Agent | `appointments`, `providers.availability`, `patients.preferred_provider_id` (defaults the provider when the caller doesn't name one) | `tasks.proposed_action` (suggested slot) |
 | Message Relay Agent | `voicemails.transcript` | `messages` row, `tasks.proposed_action` |
 | Triage Sentinel | `voicemails.transcript` | `tasks.status = escalated`, `tasks.flagged_reason` |
 | Summary Agent | `tasks` (all rows) | Read only — renders dashboard |
@@ -255,13 +261,13 @@ Agents only write to `tasks`, `voicemails`, and `messages`. Writes to `appointme
 ---
 ## 5. Seed Data
 ### Patients & scenarios
-| Patient | Insurance | Medication | Demo Scenario |
-|---|---|---|---|
-| Maria Gonzalez | Blue Cross PPO ✓ | Lisinopril + Amlodipine | Eligible refill — conflict warning (drug interaction) |
-| James Okafor | Aetna HMO ✓ | Metformin | Ineligible — last visit Nov 2024, outside 6-month window |
-| Linda Chen | Kaiser Permanente ✗ | — | Reschedule blocked — insurance not accepted |
-| Robert Martinez | United Healthcare ✓ | Atorvastatin | Reschedule — slot conflict Jun 24, agent proposes Jun 25 |
-| Priya Sharma | Blue Cross PPO ✓ | Sertraline | Message relay — adverse reaction (dizziness, nausea) |
+| Patient | Insurance | Preferred Provider | Medication | Demo Scenario |
+|---|---|---|---|---|
+| Maria Gonzalez | Blue Cross PPO ✓ | Dr. Sarah Lee | Lisinopril + Amlodipine | Eligible refill — conflict warning (drug interaction) |
+| James Okafor | Aetna HMO ✓ | Dr. James Patel | Metformin | Ineligible — last visit Nov 2024, outside 6-month window |
+| Linda Chen | Kaiser Permanente ✗ | — (none seeded) | — | Reschedule blocked — insurance not accepted |
+| Robert Martinez | United Healthcare ✓ | Dr. Sarah Lee | Atorvastatin | Reschedule — slot conflict Jun 24, agent proposes Jun 25 |
+| Priya Sharma | Blue Cross PPO ✓ | Dr. Sarah Lee | Sertraline | Message relay — adverse reaction (dizziness, nausea) |
 ### Providers
 - **Dr. Sarah Lee** — Family Medicine — Mon–Fri 9am–5pm
 - **Dr. James Patel** — Internal Medicine — Mon/Wed/Fri 8am–4pm (Fri until 1pm)
@@ -283,6 +289,14 @@ insert into patients (id, first_name, last_name, date_of_birth, phone, insurance
 insert into providers (id, name, specialty, availability) values
   ('b1b2c3d4-0001-0001-0001-000000000001', 'Dr. Sarah Lee',   'Family Medicine',   '{"mon":["09:00","17:00"],"tue":["09:00","17:00"],"wed":["09:00","17:00"],"thu":["09:00","17:00"],"fri":["09:00","17:00"]}'),
   ('b1b2c3d4-0002-0002-0002-000000000002', 'Dr. James Patel', 'Internal Medicine', '{"mon":["08:00","16:00"],"wed":["08:00","16:00"],"fri":["08:00","13:00"]}');
+-- PATIENTS.preferred_provider_id (set here, now that providers exist; Linda is left unset — no provider relationship seeded for her)
+update patients set preferred_provider_id = 'b1b2c3d4-0001-0001-0001-000000000001' where id in (
+  'a1b2c3d4-0001-0001-0001-000000000001', -- Maria Gonzalez
+  'a1b2c3d4-0004-0004-0004-000000000004', -- Robert Martinez
+  'a1b2c3d4-0005-0005-0005-000000000005'  -- Priya Sharma
+);
+update patients set preferred_provider_id = 'b1b2c3d4-0002-0002-0002-000000000002' where id =
+  'a1b2c3d4-0002-0002-0002-000000000002'; -- James Okafor
 -- APPOINTMENTS
 insert into appointments (id, patient_id, provider_id, start_time, end_time, visit_type, status) values
   -- Maria: recent visit (satisfies refill) + upcoming visit
