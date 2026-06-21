@@ -14,6 +14,8 @@ except ImportError:  # pragma: no cover - python-dotenv is listed in requirement
 
 
 class SchedulerRepo(Protocol):
+    def get_patient(self, patient_id: str) -> dict[str, Any] | None: ...
+
     def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None: ...
 
     def mark_appointment_rescheduled(self, appointment_id: str) -> bool: ...
@@ -42,6 +44,11 @@ class SupabaseSchedulerRepo:
 
     def __init__(self, client: Any | None = None):
         self._client = client or _build_supabase_client()
+
+    def get_patient(self, patient_id: str) -> dict[str, Any] | None:
+        response = self._client.table("patients").select("*").eq("id", patient_id).limit(1).execute()
+        rows = response.data or []
+        return rows[0] if rows else None
 
     def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None:
         response = (

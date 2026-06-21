@@ -12,6 +12,7 @@ from .service import book_appointment
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Book a pre-approved appointment slot into Supabase.")
+    parser.add_argument("--patient-id", required=True)
     parser.add_argument("--first-name", required=True)
     parser.add_argument("--last-name", required=True)
     parser.add_argument("--dob", required=True, help="ISO date, e.g. 1978-03-12")
@@ -27,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
 def run(args: argparse.Namespace) -> dict:
     repo = SupabaseSchedulerRepo()
     return book_appointment(
+        patient_id=args.patient_id,
         first_name=args.first_name,
         last_name=args.last_name,
         dob=args.dob,

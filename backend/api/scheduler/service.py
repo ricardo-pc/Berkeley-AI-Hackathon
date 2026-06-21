@@ -8,6 +8,7 @@ from .repo import SchedulerRepo
 
 def book_appointment(
     *,
+    patient_id: str,
     first_name: str,
     last_name: str,
     dob: str,
@@ -22,17 +23,21 @@ def book_appointment(
 
     The slot is assumed to already be validated upstream (the eligibility step),
     so this only resolves the patient, marks the old appointment rescheduled,
-    and inserts the new one.
+    and inserts the new one. patient_id is the canonical lookup key; first/last/dob
+    are carried for output and human review.
     """
-    patient = repo.find_patient(first_name, last_name, dob)
+    patient = repo.get_patient(patient_id)
     if patient is None:
         return {
             "success": False,
             "error": "patient_not_found",
-            "message": (
-                f"No patient found matching {first_name} {last_name} (DOB {dob})."
-            ),
-            "patient": {"first_name": first_name, "last_name": last_name, "dob": dob},
+            "message": f"No patient found with id {patient_id}.",
+            "patient": {
+                "id": patient_id,
+                "first_name": first_name,
+                "last_name": last_name,
+                "dob": dob,
+            },
         }
 
     rescheduled_from = None

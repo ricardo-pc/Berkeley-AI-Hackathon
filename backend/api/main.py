@@ -3,6 +3,11 @@ from __future__ import annotations
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
+from message_relay.errors import MessageRelayError
+from message_relay.errors import error_payload as message_relay_error_payload
+from message_relay.repo import SupabaseMessageRelayRepo
+from message_relay.schemas import MessageRelayRequest
+from message_relay.service import run_message_relay_check
 from prescription_eligibility.errors import PrescriptionEligibilityError
 from prescription_eligibility.errors import error_payload as prescription_error_payload
 from prescription_eligibility.repo import SupabasePrescriptionEligibilityRepo
@@ -106,6 +111,7 @@ async def create_appointment(payload: BookingRequest):
     try:
         repo = SupabaseSchedulerRepo()
         result = book_appointment(
+            patient_id=payload.patient_id,
             first_name=payload.first_name,
             last_name=payload.last_name,
             dob=payload.dob,
@@ -118,5 +124,24 @@ async def create_appointment(payload: BookingRequest):
         )
     except SchedulerError as exc:
         return JSONResponse(status_code=exc.status_code, content=scheduler_error_payload(exc))
+
+    return result
+
+
+@app.post("/api/message-relay")
+async def create_message_relay_check(payload: MessageRelayRequest):
+    try:
+        repo = SupabaseMessageRelayRepo()
+        result = run_message_relay_check(
+            patient_id=payload.patient_id,
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            dob=payload.dob,
+            message=payload.message,
+            task_id=payload.task_id,
+            repo=repo,
+        )
+    except MessageRelayError as exc:
+        return JSONResponse(status_code=exc.status_code, content=message_relay_error_payload(exc))
 
     return result
