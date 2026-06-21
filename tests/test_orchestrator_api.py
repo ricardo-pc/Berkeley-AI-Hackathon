@@ -63,10 +63,12 @@ class FakeOrchestratorRepo:
         "preferred_provider_id": "provider-1",
     }
     appointment: dict[str, Any] | None = {"id": "appointment-1"}
+    duplicate_task: dict[str, Any] | None = None
     inserted_tasks: list[dict[str, Any]]
 
     def __init__(self) -> None:
         self.inserted_tasks = []
+        self.duplicate_task = None
 
     def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None:
         return self.patient
@@ -75,6 +77,11 @@ class FakeOrchestratorRepo:
         row = {"id": f"inserted-task-{len(self.inserted_tasks) + 1}", **fields}
         self.inserted_tasks.append(row)
         return row
+
+    def find_duplicate_task(self, fields: dict[str, Any]) -> dict[str, Any] | None:
+        if self.duplicate_task and self.duplicate_task.get("status") in orchestrator_main.REVIEW_QUEUE_STATUSES:
+            return self.duplicate_task
+        return None
 
     def get_next_scheduled_appointment(self, patient_id: str) -> dict[str, Any] | None:
         return self.appointment
@@ -154,6 +161,94 @@ def test_fresh_reschedule_inserts_new_task_and_returns_task_id(monkeypatch):
     assert repo.inserted_tasks[0]["task_type"] == "reschedule"
     assert repo.inserted_tasks[0]["status"] == "pending_approval"
     assert repo.inserted_tasks[0]["agent_checks"]["scheduling_eligibility"]["conflict"] is False
+
+
+def test_fresh_refill_reuses_matching_existing_review_task(monkeypatch):
+    def fake_run_prescription_eligibility_check(**kwargs):
+        return {
+            "eligible": True,
+            "status": "pending_approval",
+            "checks": {"prescription": {"eligible": True}},
+            "proposed_action": {
+                "type": "prescription_refill",
+                "medication_name": "Lisinopril",
+                "dosage": "10mg",
+                "instructions": "once daily with food",
+                "provider_id": "provider-1",
+                "patient_id": "patient-1",
+            },
+        }
+
+    repo = _patch_orchestrator_repo(monkeypatch)
+    repo.duplicate_task = {
+        "id": "existing-task-1",
+        "patient_id": "patient-1",
+        "task_type": "prescription_refill",
+        "status": "pending_approval",
+        "agent_checks": {"prescription": {"eligible": True}},
+        "proposed_action": {
+            "type": "prescription_refill",
+            "medication_name": "Lisinopril",
+            "dosage": "10mg",
+            "instructions": "once daily with food",
+            "provider_id": "provider-1",
+            "patient_id": "patient-1",
+        },
+        "flagged_reason": None,
+    }
+    monkeypatch.setattr(orchestrator_main, "SupabasePrescriptionEligibilityRepo", lambda: object())
+    monkeypatch.setattr(orchestrator_main, "run_prescription_eligibility_check", fake_run_prescription_eligibility_check)
+
+    response = TestClient(orchestrator_main.app).post("/api/refill", json={"intake": _intake_payload()})
+
+    assert response.status_code == 200
+    assert response.json()["task_id"] == "existing-task-1"
+    assert response.json()["duplicate_task_reused"] is True
+    assert repo.inserted_tasks == []
+
+
+def test_completed_duplicate_does_not_block_new_review_task(monkeypatch):
+    def fake_run_prescription_eligibility_check(**kwargs):
+        return {
+            "eligible": True,
+            "status": "pending_approval",
+            "checks": {"prescription": {"eligible": True}},
+            "proposed_action": {
+                "type": "prescription_refill",
+                "medication_name": "Lisinopril",
+                "dosage": "10mg",
+                "instructions": "once daily with food",
+                "provider_id": "provider-1",
+                "patient_id": "patient-1",
+            },
+        }
+
+    repo = _patch_orchestrator_repo(monkeypatch)
+    repo.duplicate_task = {
+        "id": "completed-task-1",
+        "patient_id": "patient-1",
+        "task_type": "prescription_refill",
+        "status": "complete",
+        "agent_checks": {"prescription": {"eligible": True}},
+        "proposed_action": {
+            "type": "prescription_refill",
+            "medication_name": "Lisinopril",
+            "dosage": "10mg",
+            "instructions": "once daily with food",
+            "provider_id": "provider-1",
+            "patient_id": "patient-1",
+        },
+        "flagged_reason": None,
+    }
+    monkeypatch.setattr(orchestrator_main, "SupabasePrescriptionEligibilityRepo", lambda: object())
+    monkeypatch.setattr(orchestrator_main, "run_prescription_eligibility_check", fake_run_prescription_eligibility_check)
+
+    response = TestClient(orchestrator_main.app).post("/api/refill", json={"intake": _intake_payload()})
+
+    assert response.status_code == 200
+    assert response.json()["task_id"] == "inserted-task-1"
+    assert "duplicate_task_reused" not in response.json()
+    assert len(repo.inserted_tasks) == 1
 
 
 def test_conflict_with_alternative_inserts_pending_manual_review_task(monkeypatch):

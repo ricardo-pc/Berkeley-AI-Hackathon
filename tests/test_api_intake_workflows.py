@@ -76,6 +76,9 @@ class FakeOrchestratorRepo:
         self.inserted_tasks.append(row)
         return row
 
+    def find_duplicate_task(self, fields: dict) -> dict | None:
+        return None
+
     def get_next_scheduled_appointment(self, patient_id: str) -> dict:
         return {"id": "appointment-1"}
 

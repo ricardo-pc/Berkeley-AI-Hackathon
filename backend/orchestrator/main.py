@@ -33,6 +33,7 @@ except ImportError:  # pragma: no cover - python-dotenv is listed in requirement
 RequestType = Literal["refill", "reschedule", "message_relay", "unknown"]
 UrgencySignal = Literal["routine", "urgent", "emergency", "unknown"]
 APPOINTMENT_LENGTH_MINUTES = 30
+REVIEW_QUEUE_STATUSES = {"pending_approval", "escalated"}
 
 TEXTBELT_URL = "https://textbelt.com/text"
 # Symmetric to the success-path confirmation texts sent by backend/api's
@@ -103,6 +104,27 @@ class OrchestratorRepo:
         response = self._client.table("tasks").insert(fields).execute()
         rows = response.data or []
         return rows[0] if rows else {}
+
+    def find_duplicate_task(self, fields: dict[str, Any]) -> dict[str, Any] | None:
+        patient_id = fields.get("patient_id")
+        task_type = fields.get("task_type")
+        if not patient_id or not task_type:
+            return None
+
+        response = (
+            self._client.table("tasks")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .eq("task_type", task_type)
+            .in_("status", list(REVIEW_QUEUE_STATUSES))
+            .order("created_at", desc=True)
+            .limit(50)
+            .execute()
+        )
+        for row in response.data or []:
+            if _same_task_signature(row, fields):
+                return row
+        return None
 
     def get_next_scheduled_appointment(self, patient_id: str) -> dict[str, Any] | None:
         response = (
@@ -341,23 +363,39 @@ def _persist_new_task(
     if payload.task_id:
         return result
 
-    row = OrchestratorRepo().insert_task(
-        {
-            "voicemail_id": payload.voicemail_id,
-            "patient_id": patient_id,
-            "task_type": task_type,
-            "status": result.get("status"),
-            "agent_summary": result.get("agent_summary"),
-            # prescription/scheduling return "checks"; message_relay returns "agent_checks".
-            "agent_checks": result.get("agent_checks") or result.get("checks") or {},
-            "proposed_action": result.get("proposed_action"),
-            "flagged_reason": result.get("flagged_reason"),
-        }
-    )
+    task = {
+        "voicemail_id": payload.voicemail_id,
+        "patient_id": patient_id,
+        "task_type": task_type,
+        "status": result.get("status"),
+        "agent_summary": result.get("agent_summary"),
+        # prescription/scheduling return "checks"; message_relay returns "agent_checks".
+        "agent_checks": result.get("agent_checks") or result.get("checks") or {},
+        "proposed_action": result.get("proposed_action"),
+        "flagged_reason": result.get("flagged_reason"),
+    }
+    repo = OrchestratorRepo()
+    duplicate = repo.find_duplicate_task(task)
+    if duplicate:
+        result["task_id"] = duplicate.get("id")
+        result["duplicate_task_reused"] = True
+        return result
+
+    row = repo.insert_task(task)
     new_id = row.get("id")
     if new_id:
         result["task_id"] = new_id
     return result
+
+
+def _same_task_signature(existing: dict[str, Any], candidate: dict[str, Any]) -> bool:
+    return (
+        existing.get("patient_id") == candidate.get("patient_id")
+        and existing.get("task_type") == candidate.get("task_type")
+        and (existing.get("flagged_reason") or None) == (candidate.get("flagged_reason") or None)
+        and (existing.get("agent_checks") or {}) == (candidate.get("agent_checks") or {})
+        and existing.get("proposed_action") == candidate.get("proposed_action")
+    )
 
 
 def _next_scheduled_appointment(patient_id: str) -> dict[str, Any] | None:
