@@ -18,7 +18,8 @@ interface Kpi {
   label: string;
   value: number;
   Icon: LucideIcon;
-  tone: string;
+  /** Icon chip color classes. */
+  chip: string;
 }
 
 export default function DigestStrip({ tasks }: DigestStripProps) {
@@ -30,22 +31,25 @@ export default function DigestStrip({ tasks }: DigestStripProps) {
   const done = tasks.filter((t) => bucketOf(t) === "done").length;
 
   const kpis: Kpi[] = [
-    { key: "review", label: "Awaiting review", value: toReview.length, Icon: ClipboardList, tone: "text-navy" },
-    { key: "emergency", label: "Emergencies", value: emergencies, Icon: AlertOctagon, tone: "text-destructive" },
-    { key: "iffy", label: "Needs judgment", value: iffy, Icon: AlertTriangle, tone: "text-accent" },
-    { key: "followup", label: "Follow-up", value: followUp, Icon: RotateCcw, tone: "text-accent" },
-    { key: "done", label: "Done today", value: done, Icon: CheckCircle2, tone: "text-primary" },
+    { key: "review", label: "Awaiting review", value: toReview.length, Icon: ClipboardList, chip: "bg-primary-soft text-primary" },
+    { key: "emergency", label: "Emergencies", value: emergencies, Icon: AlertOctagon, chip: "bg-destructive-soft text-destructive" },
+    { key: "iffy", label: "Needs judgment", value: iffy, Icon: AlertTriangle, chip: "bg-warning-soft text-accent" },
+    { key: "followup", label: "Follow-up", value: followUp, Icon: RotateCcw, chip: "bg-warning-soft text-accent" },
+    { key: "done", label: "Done today", value: done, Icon: CheckCircle2, chip: "bg-success-soft text-primary-deep" },
   ];
 
   return (
     <section aria-label="Daily digest" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {kpis.map(({ key, label, value, Icon, tone }) => (
-        <div key={key} className="rounded-[var(--radius)] border border-border bg-surface p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-muted-foreground">{label}</span>
-            <Icon className={`size-4 ${tone}`} aria-hidden="true" />
-          </div>
-          <p className="mt-2 text-3xl font-extrabold tabular-nums text-navy">{value}</p>
+      {kpis.map(({ key, label, value, Icon, chip }) => (
+        <div
+          key={key}
+          className="rounded-[var(--radius)] border border-border bg-surface p-4 shadow-card transition-shadow hover:shadow-pop"
+        >
+          <span className={`grid size-8 place-items-center rounded-[var(--radius-sm)] ${chip}`}>
+            <Icon className="size-[18px]" aria-hidden="true" />
+          </span>
+          <p className="mt-3 text-3xl font-extrabold tabular-nums leading-none text-navy">{value}</p>
+          <p className="mt-1.5 text-sm font-medium text-muted-foreground">{label}</p>
         </div>
       ))}
     </section>

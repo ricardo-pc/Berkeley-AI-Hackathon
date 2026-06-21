@@ -5,6 +5,7 @@ import { ArrowDownUp, Search } from "lucide-react";
 import type { Task, TaskType } from "@/lib/types";
 import { TASK_TYPE_TAG } from "@/lib/types";
 import { decisionLabel, decisionTime, type DecisionTone } from "@/lib/task";
+import { initials, avatarColor } from "@/lib/avatar";
 
 interface HistoryTableProps {
   tasks: Task[];
@@ -83,10 +84,10 @@ export default function HistoryTable({ tasks }: HistoryTableProps) {
   }
 
   const selectClass =
-    "rounded-[var(--radius)] border border-border bg-surface px-2.5 py-1.5 text-sm font-medium focus:outline-none";
+    "rounded-[var(--radius-sm)] border border-border bg-surface px-2.5 py-1.5 text-sm font-medium focus:border-primary focus:outline-none";
 
   return (
-    <div className="rounded-[var(--radius)] border border-border bg-surface">
+    <div className="overflow-hidden rounded-[var(--radius)] border border-border bg-surface shadow-card">
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
         <div className="relative flex-1 min-w-[200px]">
@@ -97,7 +98,7 @@ export default function HistoryTable({ tasks }: HistoryTableProps) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search patient, summary, or note…"
             aria-label="Search history"
-            className="w-full rounded-[var(--radius)] border border-border bg-surface py-1.5 pl-8 pr-2.5 text-sm focus:outline-none"
+            className="w-full rounded-[var(--radius-sm)] border border-border bg-surface py-1.5 pl-8 pr-2.5 text-sm focus:border-primary focus:outline-none"
           />
         </div>
         <select aria-label="Filter by decision" value={decision} onChange={(e) => setDecision(e.target.value as DecisionFilter)} className={selectClass}>
@@ -142,12 +143,19 @@ export default function HistoryTable({ tasks }: HistoryTableProps) {
                 return (
                   <tr
                     key={t.id}
-                    className={`[&>td]:border-b [&>td]:border-border [&>td]:px-3 [&>td]:py-1.5 [&>td]:align-top ${
-                      i % 2 ? "bg-surface" : "bg-surface-muted/30"
-                    } hover:bg-success-soft/40`}
+                    className={`[&>td]:border-b [&>td]:border-border [&>td]:px-3 [&>td]:py-2 [&>td]:align-middle ${
+                      i % 2 ? "bg-surface" : "bg-surface-muted/50"
+                    } transition-colors hover:bg-primary-soft/40`}
                   >
                     <td className="tabular-nums whitespace-nowrap text-muted-foreground">{fmt(decisionTime(t))}</td>
-                    <td className="whitespace-nowrap font-semibold text-navy">{t.patient_name}</td>
+                    <td className="whitespace-nowrap font-semibold text-navy">
+                      <span className="flex items-center gap-2">
+                        <span className={`grid size-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ${avatarColor(t.patient_name)}`} aria-hidden="true">
+                          {initials(t.patient_name)}
+                        </span>
+                        {t.patient_name}
+                      </span>
+                    </td>
                     <td className="whitespace-nowrap text-muted-foreground">{TASK_TYPE_TAG[t.task_type]}</td>
                     <td className="whitespace-nowrap">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${TONE_BADGE[d.tone]}`}>

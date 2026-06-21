@@ -22,6 +22,7 @@ import {
   presentChecks,
 } from "@/lib/task";
 import { rowStatusMeta } from "@/lib/status";
+import { initials, avatarColor } from "@/lib/avatar";
 
 interface TaskRowProps {
   task: Task;
@@ -69,90 +70,107 @@ export default function TaskRow({
 
   return (
     <article
-      className={`rounded-[var(--radius)] border border-border border-l-4 bg-surface ${meta.accent} ${
+      className={`overflow-hidden rounded-[var(--radius)] border border-l-4 border-border bg-surface shadow-card transition-shadow hover:shadow-pop ${meta.accent} ${
         flash ? "animate-flash" : ""
-      } ${bucket === "done" ? "opacity-80" : ""}`}
+      } ${bucket === "done" ? "opacity-75" : ""}`}
     >
-      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start">
+      <div className="flex gap-3.5 p-4">
+        {/* Person avatar — CRM-style contact identity */}
         <span
-          className={`inline-grid h-7 w-fit shrink-0 place-items-center rounded-[6px] px-2 text-xs font-bold uppercase tracking-wide ${TYPE_TAG_STYLE[task.task_type]}`}
+          className={`grid size-11 shrink-0 place-items-center rounded-full text-sm font-bold ${avatarColor(task.patient_name)}`}
+          aria-hidden="true"
         >
-          {TASK_TYPE_TAG[task.task_type]}
+          {initials(task.patient_name)}
         </span>
 
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <strong className="text-navy">{task.patient_name}</strong>
-            {age != null && (
-              <span className="text-xs text-muted-foreground tabular-nums">{age}y</span>
-            )}
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${meta.chip}`}
-            >
-              <meta.Icon className="size-3" aria-hidden="true" />
-              {meta.label}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">{task.agent_summary}</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <strong className="text-[15px] font-bold text-navy">{task.patient_name}</strong>
+                {age != null && (
+                  <span className="text-xs text-muted-foreground tabular-nums">{age}y</span>
+                )}
+                <span className="text-border-strong" aria-hidden="true">·</span>
+                <span
+                  className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-wide ${TYPE_TAG_STYLE[task.task_type]}`}
+                >
+                  {TASK_TYPE_TAG[task.task_type]}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{task.agent_summary}</p>
+            </div>
 
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {checks.map((c) => (
-              <li
-                key={c.label}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
-                  c.pass ? "bg-success-soft text-primary-deep" : "bg-warning-soft text-accent"
-                }`}
+            {/* Right rail: status + primary affordance per bucket */}
+            <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
+              <span
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${meta.chip}`}
               >
-                {c.pass ? "✓" : "⚠"} {c.label}
-              </li>
-            ))}
-          </ul>
-        </div>
+                <meta.Icon className="size-3" aria-hidden="true" />
+                {meta.label}
+              </span>
 
-        {/* Right rail: primary affordance per bucket */}
-        <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
-          {bucket === "follow_up" && (
-            <button
-              type="button"
-              onClick={() => onMarkDone(task)}
-              disabled={processing}
-              className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] bg-primary px-3 text-sm font-bold text-on-primary transition-colors duration-200 hover:bg-primary-deep disabled:cursor-wait disabled:opacity-70"
-            >
-              {processing ? <Loader2 className="size-4 animate-spin" /> : <CheckCheck className="size-4" />}
-              Mark done
-            </button>
-          )}
-          {bucket === "done" && (
-            <span className="inline-flex items-center gap-1.5 rounded-[var(--radius)] bg-success-soft px-3 py-2 text-sm font-semibold text-primary-deep">
-              <Check className="size-4" aria-hidden="true" /> Done
-            </span>
-          )}
+              <div className="flex items-center gap-2">
+                {bucket === "follow_up" && (
+                  <button
+                    type="button"
+                    onClick={() => onMarkDone(task)}
+                    disabled={processing}
+                    className="inline-flex min-h-[36px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-primary px-3 text-sm font-bold text-on-primary transition-colors duration-200 hover:bg-primary-deep disabled:cursor-wait disabled:opacity-70"
+                  >
+                    {processing ? <Loader2 className="size-4 animate-spin" /> : <CheckCheck className="size-4" />}
+                    Mark done
+                  </button>
+                )}
+                {bucket === "done" && (
+                  <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] bg-success-soft px-3 py-1.5 text-sm font-semibold text-primary-deep">
+                    <Check className="size-4" aria-hidden="true" /> Done
+                  </span>
+                )}
 
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            aria-expanded={expanded}
-            aria-controls={detailId}
-            className={`inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius)] px-3 py-2 text-xs font-bold transition-colors duration-200 ${
-              isReview && !expanded
-                ? "bg-navy text-white hover:opacity-90"
-                : "text-muted-foreground hover:text-navy"
-            }`}
-          >
-            {reviewLabel}
-            <ChevronDown
-              className={`size-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-              aria-hidden="true"
-            />
-          </button>
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  aria-expanded={expanded}
+                  aria-controls={detailId}
+                  className={`inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] px-3 text-xs font-bold transition-colors duration-200 ${
+                    isReview && !expanded
+                      ? "bg-navy text-white hover:opacity-90"
+                      : "border border-border text-muted-foreground hover:border-border-strong hover:text-navy"
+                  }`}
+                >
+                  {reviewLabel}
+                  <ChevronDown
+                    className={`size-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {checks.length > 0 && (
+            <ul className="mt-2.5 flex flex-wrap gap-1.5">
+              {checks.map((c) => (
+                <li
+                  key={c.label}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                    c.pass ? "bg-success-soft text-primary-deep" : "bg-warning-soft text-accent"
+                  }`}
+                >
+                  {c.pass ? "✓" : "⚠"} {c.label}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
       {expanded && (
-        <div id={detailId} className="border-t border-border bg-surface-muted/40 px-4 py-4">
+        <div id={detailId} className="border-t border-border bg-surface-muted px-4 py-4 sm:pl-[74px]">
           {/* Proposed action — exactly what Approve will execute. */}
           <div
-            className={`rounded-[var(--radius)] border p-3 ${
+            className={`rounded-[var(--radius-sm)] border p-3 ${
               mode === "action_taken"
                 ? "border-destructive/30 bg-destructive-soft/60"
                 : "border-primary/30 bg-success-soft/60"
@@ -168,7 +186,7 @@ export default function TaskRow({
           </div>
 
           {iffy && (
-            <p className="mt-3 flex items-start gap-2 rounded-[var(--radius)] bg-warning-soft px-3 py-2 text-sm text-accent">
+            <p className="mt-3 flex items-start gap-2 rounded-[var(--radius-sm)] bg-warning-soft px-3 py-2 text-sm text-accent">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
                 Eligibility gate failed{task.flagged_reason ? ` — ${task.flagged_reason}` : ""}. Use
@@ -182,7 +200,7 @@ export default function TaskRow({
               <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 Voicemail transcript
               </h4>
-              <p className="mt-1 rounded-[var(--radius)] border border-border bg-surface p-3 text-sm italic text-foreground">
+              <p className="mt-1 rounded-[var(--radius-sm)] border border-border bg-surface p-3 text-sm italic text-foreground">
                 “{task.transcript ?? "—"}”
               </p>
               {task.patient_phone && (
@@ -228,7 +246,7 @@ export default function TaskRow({
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
                 placeholder="Add context for the audit trail…"
-                className="mt-1 w-full resize-y rounded-[var(--radius)] border border-border bg-surface p-2 text-sm focus:outline-none"
+                className="mt-1 w-full resize-y rounded-[var(--radius-sm)] border border-border bg-surface p-2 text-sm focus:border-primary focus:outline-none"
               />
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -238,7 +256,7 @@ export default function TaskRow({
                       type="button"
                       onClick={() => onApprove(task, note)}
                       disabled={processing}
-                      className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] bg-primary px-4 text-sm font-bold text-on-primary transition-colors duration-200 hover:bg-primary-deep disabled:cursor-wait disabled:opacity-70"
+                      className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-primary px-4 text-sm font-bold text-on-primary transition-colors duration-200 hover:bg-primary-deep disabled:cursor-wait disabled:opacity-70"
                     >
                       {processing ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
                       Approve
@@ -247,7 +265,7 @@ export default function TaskRow({
                       type="button"
                       onClick={() => onReject(task, note)}
                       disabled={processing}
-                      className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] bg-destructive px-4 text-sm font-bold text-white transition-colors duration-200 hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
+                      className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-destructive/40 bg-surface px-4 text-sm font-bold text-destructive transition-colors duration-200 hover:bg-destructive-soft disabled:cursor-wait disabled:opacity-70"
                     >
                       <X className="size-4" /> Reject
                     </button>
@@ -257,7 +275,7 @@ export default function TaskRow({
                     type="button"
                     onClick={() => onActionTaken(task, note)}
                     disabled={processing}
-                    className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] bg-navy px-4 text-sm font-bold text-white transition-colors duration-200 hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
+                    className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius-sm)] bg-navy px-4 text-sm font-bold text-white transition-colors duration-200 hover:opacity-90 disabled:cursor-wait disabled:opacity-70"
                   >
                     {processing ? <Loader2 className="size-4 animate-spin" /> : <ActionIcon className="size-4" />}
                     Action taken

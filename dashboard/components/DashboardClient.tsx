@@ -3,10 +3,16 @@
 import { useMemo, useRef, useState } from "react";
 import type { Task } from "@/lib/types";
 import { bucketOf, sortForReview } from "@/lib/task";
-import AppHeader from "./AppHeader";
+import AppShell from "./AppShell";
 import DigestStrip from "./DigestStrip";
 import TaskSection from "./TaskSection";
 import Toast from "./Toast";
+
+const TODAY = new Date("2026-06-21").toLocaleDateString("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+});
 
 type Decision = "approve" | "reject" | "action_taken" | "mark_done";
 
@@ -155,19 +161,22 @@ export default function DashboardClient({ initialTasks, usingFixtures }: Dashboa
   }
 
   return (
-    <div className="flex min-h-full flex-col">
-      <AppHeader chwName="Riya Shah" active="queue" pendingCount={toReview.length} />
+    <AppShell
+      chwName="Riya Shah"
+      active="queue"
+      pendingCount={toReview.length}
+      usingFixtures={usingFixtures}
+      title="Work queue"
+      subtitle={`${toReview.length} ${toReview.length === 1 ? "patient" : "patients"} awaiting review`}
+      headerAside={
+        <span className="inline-flex items-center self-start rounded-full border border-border bg-surface-muted px-3 py-1 text-xs font-semibold text-muted-foreground sm:self-auto">
+          {TODAY}
+        </span>
+      }
+    >
+      <DigestStrip tasks={tasks} />
 
-      {usingFixtures && (
-        <div className="bg-warning-soft px-4 py-1.5 text-center text-xs font-semibold text-accent">
-          Demo data — not connected to the live database
-        </div>
-      )}
-
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-        <DigestStrip tasks={tasks} />
-
-        <div className="mt-6 space-y-4">
+      <div className="mt-6 space-y-4">
           <TaskSection
             bucket="to_review"
             tasks={toReview}
@@ -199,8 +208,7 @@ export default function DashboardClient({ initialTasks, usingFixtures }: Dashboa
             onActionTaken={handleActionTaken}
             onMarkDone={handleMarkDone}
           />
-        </div>
-      </main>
+      </div>
 
       {toast && (
         <Toast
@@ -210,6 +218,6 @@ export default function DashboardClient({ initialTasks, usingFixtures }: Dashboa
           onDismiss={() => setToast(null)}
         />
       )}
-    </div>
+    </AppShell>
   );
 }

@@ -35,25 +35,25 @@ export default function TaskSection({
   const danger = bucket === "follow_up";
 
   return (
-    <section
-      className={`rounded-[var(--radius)] border bg-surface ${
-        danger ? "border-accent/40" : "border-border"
-      }`}
-    >
+    <section className="rounded-[var(--radius)] border border-border bg-surface shadow-card">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={sectionId}
-        className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-t-[var(--radius)] bg-gradient-to-b from-slate-100 to-slate-200 px-4 py-2.5 text-left ${
-          open ? "border-b border-border" : ""
+        className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-t-[var(--radius)] px-4 py-3 text-left transition-colors hover:bg-surface-muted ${
+          open ? "border-b border-border" : "rounded-b-[var(--radius)]"
         }`}
       >
-        <span className="flex items-center gap-2">
-          <meta.Icon className={`size-4 ${danger ? "text-accent" : "text-navy"}`} aria-hidden="true" />
-          <h2 className={`text-sm font-extrabold uppercase tracking-wide ${danger ? "text-accent" : "text-navy"}`}>
-            {meta.title}
-          </h2>
+        <span className="flex items-center gap-2.5">
+          <span
+            className={`grid size-7 place-items-center rounded-[var(--radius-sm)] ${
+              danger ? "bg-warning-soft text-accent" : "bg-surface-muted text-muted-foreground"
+            }`}
+          >
+            <meta.Icon className="size-4" aria-hidden="true" />
+          </span>
+          <h2 className="text-sm font-bold text-navy">{meta.title}</h2>
           <span
             className={`tabular-nums rounded-full px-2 py-0.5 text-xs font-bold ${
               danger ? "bg-warning-soft text-accent" : "bg-surface-muted text-muted-foreground"
@@ -69,8 +69,8 @@ export default function TaskSection({
       </button>
 
       {open && (
-        <div id={sectionId} className="space-y-2 px-3 pb-3">
-          <p className="px-1 pb-1 text-xs text-muted-foreground">{meta.blurb}</p>
+        <div id={sectionId} className="space-y-2.5 p-3">
+          <p className="px-1 pb-0.5 text-xs text-muted-foreground">{meta.blurb}</p>
           {tasks.length === 0 ? (
             <div className="flex flex-col items-center gap-1 rounded-[var(--radius)] border border-dashed border-border py-8 text-center">
               <Inbox className="size-5 text-muted-foreground" aria-hidden="true" />

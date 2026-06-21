@@ -15,7 +15,7 @@ export default function Toast({ message, tone = "success", onUndo, onDismiss }: 
     <div
       role="status"
       aria-live="polite"
-      className={`fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-[var(--radius)] px-4 py-3 text-sm text-white shadow-lg ${
+      className={`shadow-pop fixed inset-x-0 bottom-4 z-50 mx-auto flex w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full px-4 py-2.5 text-sm text-white ${
         isError ? "bg-destructive" : "bg-navy"
       }`}
     >
