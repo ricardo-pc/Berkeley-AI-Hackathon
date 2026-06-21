@@ -1,0 +1,18 @@
+{
+  "first_name": "Priya",
+  "last_name": "Sharma",
+  "date_of_birth": "1988-09-18",
+  "phone_number": "510-555-0165",
+  "insurance_plan": "Blue Cross PPO",
+  "request": {
+    "type": "message_relay",
+    "details": "Caller wants to inform Dr. Lee that she has been experiencing dizziness and nausea since starting Sertraline three days ago.",
+    "orders": [
+      "Sertraline"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "urgent"
+  },
+  "missing_fields": [],
+  "transcript": "Hi, this is Priya Sharma, September 18, 1988. I have Blue Cross PPO. I just wanted to let Dr. Lee know that I have been feeling really dizzy and nauseous since I started the Sertraline three days ago. Please let her know. My number is 510-555-0165."
+}

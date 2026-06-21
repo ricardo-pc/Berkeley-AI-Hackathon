@@ -1,0 +1,18 @@
+{
+  "first_name": "James",
+  "last_name": "Okafor",
+  "date_of_birth": "1965-07-24",
+  "phone_number": "510-555-0182",
+  "insurance_plan": "Aetna HMO",
+  "request": {
+    "type": "refill",
+    "details": "Caller is requesting a refill for Metformin 500 mg twice daily with meals.",
+    "orders": [
+      "Metformin 500 mg twice daily with meals"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "routine"
+  },
+  "missing_fields": [],
+  "transcript": "Hey, this is James Okafor. My birthday is July 24, 1965. I need a refill on my Metformin 500 milligrams, twice daily with meals. I have Aetna HMO insurance. You can reach me at 510-555-0182."
+}

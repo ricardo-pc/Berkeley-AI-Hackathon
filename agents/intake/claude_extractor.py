@@ -16,7 +16,7 @@ except ImportError:  # pragma: no cover - python-dotenv is listed in requirement
     load_dotenv = None
 
 
-CLAUDE_MODEL = "claude-sonnet-4-6"
+CLAUDE_MODEL = "claude-haiku-4-5"
 
 SYSTEM_PROMPT = """
 You are the Intake Agent for a clinic voicemail triage system.

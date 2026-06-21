@@ -1,0 +1,22 @@
+{
+  "first_name": "Sam",
+  "last_name": null,
+  "date_of_birth": null,
+  "phone_number": "510-555-0120",
+  "insurance_plan": null,
+  "request": {
+    "type": "reschedule",
+    "details": "Caller wants to move their existing appointment to next Tuesday morning.",
+    "orders": [],
+    "preferred_times": [
+      "next Tuesday morning"
+    ],
+    "urgency_signal": "routine"
+  },
+  "missing_fields": [
+    "last_name",
+    "date_of_birth",
+    "insurance_plan"
+  ],
+  "transcript": "Hi, this is Sam. I need to move my appointment, preferably sometime next Tuesday morning. I do not have my insurance card with me. Please call me at 510-555-0120."
+}

@@ -1,0 +1,18 @@
+{
+  "first_name": "Alan",
+  "last_name": "Brooks",
+  "date_of_birth": "1971-04-02",
+  "phone_number": "415-555-0144",
+  "insurance_plan": "Cigna PPO",
+  "request": {
+    "type": "refill",
+    "details": "Caller is requesting a refill of Losartan 50 milligrams.",
+    "orders": [
+      "Losartan 50 mg"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "routine"
+  },
+  "missing_fields": [],
+  "transcript": "Hello, my name is Alan Brooks, date of birth April 2, 1971. I am calling for a refill of Losartan 50 milligrams. I think my insurance is Cigna PPO. Please call me back at 415-555-0144."
+}

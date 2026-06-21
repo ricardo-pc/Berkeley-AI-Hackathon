@@ -1,0 +1,18 @@
+{
+  "first_name": "Robert",
+  "last_name": "Martinez",
+  "date_of_birth": "1952-01-30",
+  "phone_number": "415-555-0174",
+  "insurance_plan": "United Healthcare",
+  "request": {
+    "type": "reschedule",
+    "details": "Caller wants to move their appointment to June 24th around 3:00 PM with Dr. Lee.",
+    "orders": [],
+    "preferred_times": [
+      "June 24th around 3:00 PM"
+    ],
+    "urgency_signal": "routine"
+  },
+  "missing_fields": [],
+  "transcript": "This is Robert Martinez, January 30, 1952. I need to move my appointment to June 24th around 3 in the afternoon with Dr. Lee. My insurance is United Healthcare and my number is 415-555-0174."
+}
