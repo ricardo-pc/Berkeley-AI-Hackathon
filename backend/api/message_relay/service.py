@@ -67,6 +67,8 @@ def run_message_relay_check(
             "message": draft,
         }
 
+    # reasoning is surfaced once as agent_summary (-> tasks.agent_summary), so it is
+    # intentionally not duplicated inside agent_checks.
     agent_checks = {
         "message_relay": {
             "route": route,
@@ -75,7 +77,6 @@ def run_message_relay_check(
             "mentioned_doctor": mentioned_doctor,
             "doctor_on_file": doctor_on_file,
             "doctor_matches": doctor_matches,
-            "reasoning": reasoning,
         }
     }
 

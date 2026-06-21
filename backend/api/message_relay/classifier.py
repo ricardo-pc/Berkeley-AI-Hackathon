@@ -25,9 +25,12 @@ SYSTEM_PROMPT = (
     "non-clinical question.\n"
     "- \"none\": not worth relaying — thanks, confirmations, spam, or anything needing no action.\n"
     "If the route is physician or staff, write draft_message: a concise, factual one- or two-"
-    "sentence message the clinic can forward to the recipient. Do not invent clinical details "
-    "beyond what the patient said. If the patient names a specific doctor, capture it in "
-    "mentioned_doctor. Always give a brief reasoning for your decision."
+    "sentence message the clinic can forward to the recipient. In draft_message include ONLY "
+    "facts the patient actually stated — do not add reasons, causes, diagnoses, or details they "
+    "did not give (for example, if the patient says nothing is wrong, do not write 'due to "
+    "illness'). If the patient names a specific doctor, capture it in mentioned_doctor. The "
+    "reasoning field is your private note to the reviewing healthcare worker and may include "
+    "clinical interpretation; keep it brief and always provide it."
 )
 
 DECISION_TOOL = {
