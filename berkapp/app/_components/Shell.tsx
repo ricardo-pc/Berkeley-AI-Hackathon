@@ -8,6 +8,7 @@ const topMenus = [
   "File",
   "Patient",
   "Schedule",
+  "Rx",
   "Encounters",
   "Messages",
   "Billing",
@@ -15,6 +16,25 @@ const topMenus = [
   "Tools",
   "Help",
 ];
+
+// Nav labels that route somewhere. These are only clickable once a patient is
+// in context (you've clicked into a chart) — matching eClinicalWorks, where
+// most actions require an open patient.
+const ROUTING_LABELS = new Set(["Schedule", "Rx"]);
+
+// Returns the href for a routing label, or null if it's gated (no active
+// patient), or undefined if the label isn't a routing item at all.
+function navHrefFor(label: string, patientId: string | null): string | null | undefined {
+  if (!ROUTING_LABELS.has(label)) return undefined;
+  if (!patientId) return null;
+  return label === "Rx" ? `/rx?patientId=${patientId}` : "/schedule";
+}
+
+// /ehr/<id>/... means a chart is open; /ehr (the list) does not.
+function activePatientId(pathname: string): string | null {
+  const parts = pathname.split("/");
+  return parts[1] === "ehr" && parts[2] ? parts[2] : null;
+}
 
 const navItems = [
   { seg: "", label: "Patient Hub", icon: "🏠" },
@@ -32,6 +52,9 @@ const navItems = [
 
 export function TopBar() {
   const router = useRouter();
+  const pathname = usePathname();
+  const patientId = activePatientId(pathname);
+  const gatedTitle = "Open a patient chart first";
   return (
     <header className="flex-shrink-0">
       {/* brand + menu row */}
@@ -42,21 +65,31 @@ export function TopBar() {
             <sup className="ml-0.5 text-[8px]">®</sup>
           </span>
           <nav className="hidden gap-1 md:flex">
-            {topMenus.map((m) =>
-              m === "Schedule" ? (
-                <Link
-                  key={m}
-                  href="/schedule"
-                  className="rounded px-2 py-1 text-xs hover:bg-white/15"
-                >
+            {topMenus.map((m) => {
+              const href = navHrefFor(m, patientId);
+              if (href === undefined)
+                return (
+                  <button key={m} className="rounded px-2 py-1 text-xs hover:bg-white/15">
+                    {m}
+                  </button>
+                );
+              if (href === null)
+                return (
+                  <span
+                    key={m}
+                    aria-disabled
+                    title={gatedTitle}
+                    className="cursor-not-allowed rounded px-2 py-1 text-xs text-white/40"
+                  >
+                    {m}
+                  </span>
+                );
+              return (
+                <Link key={m} href={href} className="rounded px-2 py-1 text-xs hover:bg-white/15">
                   {m}
                 </Link>
-              ) : (
-                <button key={m} className="rounded px-2 py-1 text-xs hover:bg-white/15">
-                  {m}
-                </button>
-              ),
-            )}
+              );
+            })}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -79,20 +112,38 @@ export function TopBar() {
         >
           ▤ Patient List
         </Link>
-        <Link
-          href="/schedule"
-          className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
-        >
-          Schedule
-        </Link>
-        {["New Tel Encounter", "Rx", "Labs", "Hub", "Messages", "Print"].map((t) => (
-          <button
-            key={t}
-            className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
-          >
-            {t}
-          </button>
-        ))}
+        {["Schedule", "New Tel Encounter", "Rx", "Labs", "Hub", "Messages", "Print"].map((t) => {
+          const href = navHrefFor(t, patientId);
+          if (href === undefined)
+            return (
+              <button
+                key={t}
+                className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
+              >
+                {t}
+              </button>
+            );
+          if (href === null)
+            return (
+              <span
+                key={t}
+                aria-disabled
+                title={gatedTitle}
+                className="cursor-not-allowed rounded border border-transparent px-2 py-1 text-[11px] text-slate-400"
+              >
+                {t}
+              </span>
+            );
+          return (
+            <Link
+              key={t}
+              href={href}
+              className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
+            >
+              {t}
+            </Link>
+          );
+        })}
         <div className="ml-auto flex items-center gap-1">
           <input
             placeholder="Search patient (name / DOB / MRN)…"
