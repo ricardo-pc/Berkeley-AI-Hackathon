@@ -2,9 +2,6 @@ import "server-only";
 
 import type { Task } from "./types";
 
-// The dashboard owns NO database access. Every read/write goes to the FastAPI
-// backend, which is the single source of truth + the only holder of the
-// Supabase service key. This module is the one place that knows the backend URL.
 const BASE = process.env.BACKEND_API_URL?.replace(/\/$/, "");
 
 export type Decision = "approve" | "reject" | "action_taken" | "mark_done" | "reopen";
