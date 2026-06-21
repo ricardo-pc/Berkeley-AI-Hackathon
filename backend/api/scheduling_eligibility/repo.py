@@ -20,6 +20,8 @@ class ScheduleEligibilityRepo(Protocol):
 
     def get_reschedule_tasks_since_last_visit(self, patient_id: str) -> list[dict[str, Any]]: ...
 
+    def get_task(self, task_id: str) -> dict[str, Any]: ...
+
     def update_task(self, task_id: str, fields: dict[str, Any]) -> None: ...
 
 
@@ -76,6 +78,11 @@ class SupabaseScheduleEligibilityRepo:
 
         response = query.execute()
         return response.data or []
+
+    def get_task(self, task_id: str) -> dict[str, Any]:
+        response = self._client.table("tasks").select("*").eq("id", task_id).limit(1).execute()
+        rows = response.data or []
+        return rows[0] if rows else {}
 
     def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
         self._client.table("tasks").update(fields).eq("id", task_id).execute()

@@ -23,10 +23,12 @@ class FakeRepo:
         provider: dict[str, Any] | None,
         appointments: list[dict[str, Any]] | None = None,
         reschedule_tasks: list[dict[str, Any]] | None = None,
+        existing_task: dict[str, Any] | None = None,
     ):
         self._provider = provider
         self._appointments = appointments or []
         self._reschedule_tasks = reschedule_tasks or []
+        self._existing_task = existing_task or {}
         self.updated_tasks: list[tuple[str, dict[str, Any]]] = []
 
     def get_provider(self, provider_id: str) -> dict[str, Any]:
@@ -37,6 +39,9 @@ class FakeRepo:
 
     def get_reschedule_tasks_since_last_visit(self, patient_id: str) -> list[dict[str, Any]]:
         return self._reschedule_tasks
+
+    def get_task(self, task_id: str) -> dict[str, Any]:
+        return self._existing_task
 
     def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
         self.updated_tasks.append((task_id, fields))
@@ -115,6 +120,27 @@ def test_task_id_writes_the_result_back_to_the_tasks_table():
     assert written_fields["agent_checks"] == result["agent_checks"]
     assert written_fields["proposed_action"] == result["proposed_action"]
     assert written_fields["flagged_reason"] == result["flagged_reason"]
+
+
+def test_write_back_merges_with_another_agents_existing_checks():
+    repo = FakeRepo(
+        provider={"id": "p1", "availability": PROVIDER_AVAILABILITY},
+        existing_task={"agent_checks": {"insurance_eligibility": {"valid": True}}},
+    )
+
+    run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        task_id="task-1",
+        summarize=fake_summarize,
+    )
+
+    _, written_fields = repo.updated_tasks[0]
+    assert written_fields["agent_checks"]["insurance_eligibility"] == {"valid": True}
+    assert "scheduling_eligibility" in written_fields["agent_checks"]
 
 
 def test_no_task_id_does_not_touch_the_tasks_table():

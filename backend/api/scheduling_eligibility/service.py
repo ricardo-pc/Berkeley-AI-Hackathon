@@ -90,12 +90,14 @@ def run_schedule_eligibility_check(
     }
 
     if task_id:
+        existing_task = repo.get_task(task_id)
+        merged_checks = {**(existing_task.get("agent_checks") or {}), **checks}
         repo.update_task(
             task_id,
             {
                 "status": status,
                 "agent_summary": agent_summary,
-                "agent_checks": checks,
+                "agent_checks": merged_checks,
                 "proposed_action": proposed_action,
                 "flagged_reason": flagged_reason,
             },

@@ -3,6 +3,11 @@ from __future__ import annotations
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
+from prescription_eligibility.errors import PrescriptionEligibilityError
+from prescription_eligibility.errors import error_payload as prescription_error_payload
+from prescription_eligibility.repo import SupabasePrescriptionEligibilityRepo
+from prescription_eligibility.schemas import PrescriptionEligibilityRequest
+from prescription_eligibility.service import run_prescription_eligibility_check
 from scheduling_eligibility.errors import ScheduleEligibilityError
 from scheduling_eligibility.errors import error_payload as schedule_error_payload
 from scheduling_eligibility.repo import SupabaseScheduleEligibilityRepo
@@ -67,4 +72,26 @@ async def create_schedule_eligibility_check(payload: ScheduleEligibilityRequest)
 
 def _schedule_eligibility_error_response(exc: ScheduleEligibilityError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content=schedule_error_payload(exc))
+
+
+@app.post("/api/prescription-eligibility")
+async def create_prescription_eligibility_check(payload: PrescriptionEligibilityRequest):
+    try:
+        repo = SupabasePrescriptionEligibilityRepo()
+        result = run_prescription_eligibility_check(
+            patient_id=payload.patient_id,
+            medication_name=payload.medication_name,
+            dosage=payload.dosage,
+            instructions=payload.instructions,
+            task_id=payload.task_id,
+            repo=repo,
+        )
+    except PrescriptionEligibilityError as exc:
+        return _prescription_eligibility_error_response(exc)
+
+    return result
+
+
+def _prescription_eligibility_error_response(exc: PrescriptionEligibilityError) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content=prescription_error_payload(exc))
 
