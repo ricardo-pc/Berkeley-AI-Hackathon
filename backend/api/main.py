@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import re
+from pathlib import Path
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
@@ -25,7 +29,11 @@ from scheduling_eligibility.schemas import ScheduleEligibilityRequest
 from scheduling_eligibility.service import run_schedule_eligibility_check
 from transcription.errors import InvalidAudioError, TranscriptionError, error_payload
 from transcription.schemas import TranscriptionResponse, to_plain_dict
-from transcription.service import transcribe_audio
+from transcription.service import normalize_deepgram_response, transcribe_audio
+
+
+API_ROOT = Path(__file__).resolve().parent
+JAMES_MOCK_TRANSCRIPTION_PATH = API_ROOT / "contracts" / "james_mock_transcription.json"
 
 
 app = FastAPI(
@@ -57,8 +65,46 @@ async def create_transcription(file: UploadFile | None = File(default=None)):
     return to_plain_dict(result)
 
 
+@app.post("/api/transcriptions/text")
+async def create_transcription_text(file: UploadFile | None = File(default=None)):
+    if file is None:
+        return _error_response(InvalidAudioError())
+
+    try:
+        audio_bytes = await file.read()
+        result = await transcribe_audio(
+            audio_bytes,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
+    except TranscriptionError as exc:
+        return _error_response(exc)
+
+    return {"transcript": _compact_transcript(result.transcript)}
+
+
+@app.get("/api/mock/transcriptions/james", response_model=TranscriptionResponse)
+async def mock_james_transcription():
+    return to_plain_dict(_load_james_mock_transcription())
+
+
+@app.get("/api/mock/transcriptions/james/text")
+async def mock_james_transcription_text():
+    result = _load_james_mock_transcription()
+    return {"transcript": _compact_transcript(result.transcript)}
+
+
 def _error_response(exc: TranscriptionError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content=error_payload(exc))
+
+
+def _compact_transcript(transcript: str) -> str:
+    return re.sub(r"\s+", " ", transcript).strip()
+
+
+def _load_james_mock_transcription() -> TranscriptionResponse:
+    raw = json.loads(JAMES_MOCK_TRANSCRIPTION_PATH.read_text(encoding="utf-8"))
+    return normalize_deepgram_response(raw)
 
 
 @app.post("/api/schedule-eligibility")
