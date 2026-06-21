@@ -7,6 +7,7 @@ import type {
   ScheduleAppointment,
   ScheduleProvider,
 } from "../../_lib/ehr";
+import { BadgeBar } from "../BadgeBar";
 import { IconRail } from "../IconRail";
 
 // Faithful-as-possible recreation of the eClinicalWorks 11e "Office Visits"
@@ -16,10 +17,11 @@ import { IconRail } from "../IconRail";
 // ---- grid geometry ----
 const START_MIN = 7 * 60; // 7:00 AM
 const END_MIN = 19 * 60; // 7:00 PM
-const SLOT = 15;
-const ROW_H = 20; // px per 15-minute slot
+const SLOT = 30; // 30-minute intervals
+const ROW_H = 28; // px per 30-minute slot
 const ROWS = (END_MIN - START_MIN) / SLOT;
 const BODY_H = ROWS * ROW_H;
+const SLOTS_PER_HOUR = 60 / SLOT;
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -96,43 +98,6 @@ export function ScheduleScreen({
         </div>
       </div>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------- badge bar
-const BADGES: [string, number, string][] = [
-  ["P", 0, "bg-slate-500"], ["N", 2, "bg-amber-400 text-slate-900"],
-  ["E", 0, "bg-teal-500"], ["S", 0, "bg-emerald-500"], ["D", 53, "bg-sky-500"],
-  ["R", 24, "bg-yellow-500 text-slate-900"], ["T", 29, "bg-orange-500"],
-  ["L", 3, "bg-cyan-500"], ["M", 1472, "bg-rose-500"],
-];
-
-function BadgeBar() {
-  return (
-    <header className="flex flex-shrink-0 items-center gap-3 bg-gradient-to-b from-teal-700 to-teal-900 px-3 py-1.5 text-white">
-      <button className="rounded p-1 text-lg leading-none hover:bg-white/15" aria-label="Menu">☰</button>
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-sm font-bold text-teal-700">e</span>
-      <span className="text-sm font-semibold tracking-tight">
-        eClinical<span className="text-teal-300">Works</span> 11e
-      </span>
-      <div className="ml-2 flex items-center gap-1 rounded bg-white/15 px-2 py-1 text-[11px]">
-        <span aria-hidden>🔍</span>
-        <input
-          placeholder="Patient name / DOB / Acct No."
-          className="w-44 bg-transparent placeholder-white/60 focus:outline-none"
-        />
-      </div>
-      <div className="ml-auto flex items-center gap-1.5">
-        {BADGES.map(([letter, count, color]) => (
-          <span key={letter} className="flex items-center gap-1" title={`${letter}: ${count}`}>
-            <span className="text-[10px] text-white/80">{letter}</span>
-            <span className={`flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${color}`}>
-              {count}
-            </span>
-          </span>
-        ))}
-      </div>
-    </header>
   );
 }
 
@@ -320,7 +285,7 @@ function Grid({
 }) {
   // strong hourly line + faint 15-min line, drawn as a background gradient
   const gridLines = {
-    backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${ROW_H - 1}px, #e5e7eb ${ROW_H - 1}px, #e5e7eb ${ROW_H}px), repeating-linear-gradient(to bottom, transparent 0, transparent ${ROW_H * 4 - 1}px, #cbd5e1 ${ROW_H * 4 - 1}px, #cbd5e1 ${ROW_H * 4}px)`,
+    backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${ROW_H - 1}px, #e5e7eb ${ROW_H - 1}px, #e5e7eb ${ROW_H}px), repeating-linear-gradient(to bottom, transparent 0, transparent ${ROW_H * SLOTS_PER_HOUR - 1}px, #cbd5e1 ${ROW_H * SLOTS_PER_HOUR - 1}px, #cbd5e1 ${ROW_H * SLOTS_PER_HOUR}px)`,
   } as const;
 
   return (
