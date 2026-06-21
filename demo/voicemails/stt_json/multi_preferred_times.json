@@ -1,0 +1,12 @@
+{
+  "transcript": "Hi, this is David Okafor, date of birth July 9th, 1990. I need to reschedule my appointment with Dr. Lee. I'm pretty flexible, so I could come in next Tuesday morning, or if that's full, Thursday at 2 PM works too, and honestly anytime Friday afternoon would also be fine. My insurance is Blue Cross Blue Shield and my callback number is (415) 555-0188. Thanks.",
+  "confidence": 0.987,
+  "duration": 22.5,
+  "provider": "deepgram",
+  "raw_provider_response": {
+    "metadata": {
+      "created": "2026-06-20T17:30:00.000Z",
+      "duration": 22.5
+    }
+  }
+}

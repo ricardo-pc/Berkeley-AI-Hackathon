@@ -1,0 +1,31 @@
+{
+  "first_name": "Maria",
+  "last_name": "Gonzalez",
+  "date_of_birth": "1978-03-12",
+  "phone_number": "(415) 555-0101",
+  "insurance_plan": null,
+  "request": {
+    "type": "refill",
+    "details": "Refill for lisinopril 20 milligrams twice daily",
+    "orders": [
+      "Lisinopril"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "routine"
+  },
+  "requests": [
+    {
+      "type": "refill",
+      "details": "Refill for lisinopril 20 milligrams twice daily",
+      "orders": [
+        "Lisinopril"
+      ],
+      "preferred_times": [],
+      "urgency_signal": "routine"
+    }
+  ],
+  "missing_fields": [
+    "insurance_plan"
+  ],
+  "transcript": "Hi. This is Maria Gonzalez. Date of birth, 03/12/1978. I need a refill for lisinopril 20 milligrams twice daily. My callback number is (415) 555-0101."
+}

@@ -6,7 +6,7 @@
   "insurance_plan": "Blue Cross PPO",
   "request": {
     "type": "unknown",
-    "details": "Caller reports sharp chest pain and trouble breathing.",
+    "details": "Caller reports sharp chest pain and trouble breathing; uncertain what to do.",
     "orders": [],
     "preferred_times": [],
     "urgency_signal": "emergency"
@@ -14,7 +14,7 @@
   "requests": [
     {
       "type": "unknown",
-      "details": "Caller reports sharp chest pain and trouble breathing.",
+      "details": "Caller reports sharp chest pain and trouble breathing; uncertain what to do.",
       "orders": [],
       "preferred_times": [],
       "urgency_signal": "emergency"

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from agents.intake.claude_extractor import SYSTEM_PROMPT, extract_intake_fields_with_claude
+from agents.intake.claude_extractor import (
+    SYSTEM_PROMPT,
+    _resolve_reference_date,
+    extract_intake_fields_with_claude,
+)
 from agents.intake.errors import (
     ClaudeExtractionError,
     InvalidSTTPayloadError,
@@ -135,6 +140,51 @@ def test_prompt_supports_multiple_distinct_requests():
     assert "refill plus a doctor message" in SYSTEM_PROMPT
 
 
+def test_prompt_requires_computer_friendly_preferred_times():
+    assert "preferred_times must be an array of objects" in SYSTEM_PROMPT
+    assert "raw_text, date, start_time, time_of_day" in SYSTEM_PROMPT
+    assert '"start_time":"15:00"' in SYSTEM_PROMPT
+
+
+def test_prompt_resolves_relative_dates_against_reference_date():
+    assert "reference_date" in SYSTEM_PROMPT
+    assert "reference_weekday" in SYSTEM_PROMPT
+    # The "next Tuesday" example must now resolve to a concrete date, not null.
+    assert '"raw_text":"next Tuesday morning","date":"2026-06-23"' in SYSTEM_PROMPT
+
+
+def test_extractor_passes_reference_date_to_model():
+    client = FakeAnthropicClient(json.dumps(load_json(CLAUDE_FIXTURE)))
+
+    extract_intake_fields_with_claude(
+        transcript="Maria needs a refill.",
+        stt_json={"transcript": "Maria needs a refill."},
+        api_key="test-key",
+        client=client,
+        reference_date=date(2026, 6, 20),
+    )
+
+    content = json.loads(client.messages.last_call["messages"][0]["content"])
+    assert content["reference_date"] == "2026-06-20"
+    assert content["reference_weekday"] == "Saturday"
+
+
+def test_reference_date_prefers_explicit_override():
+    stt_json = {"raw_provider_response": {"metadata": {"created": "2026-06-21T00:57:12.431Z"}}}
+
+    assert _resolve_reference_date(stt_json, date(2026, 1, 1)) == date(2026, 1, 1)
+
+
+def test_reference_date_falls_back_to_stt_created_timestamp():
+    stt_json = {"raw_provider_response": {"metadata": {"created": "2026-06-21T00:57:12.431Z"}}}
+
+    assert _resolve_reference_date(stt_json, None) == date(2026, 6, 21)
+
+
+def test_reference_date_falls_back_to_today_when_unknown():
+    assert _resolve_reference_date({}, None) == date.today()
+
+
 def test_prompt_excludes_context_medications_from_orders():
     assert "only mentioned as context" in SYSTEM_PROMPT
     assert "dizzy since starting Sertraline" in SYSTEM_PROMPT
@@ -170,7 +220,15 @@ def test_service_passes_transcript_and_stt_json_to_extractor():
             request={
                 "type": "reschedule",
                 "details": "Patient wants to move his appointment to Friday afternoon.",
-                "preferred_times": ["Friday afternoon"],
+                "preferred_times": [
+                    {
+                        "raw_text": "Friday afternoon",
+                        "date": None,
+                        "start_time": None,
+                        "end_time": None,
+                        "time_of_day": "afternoon",
+                    }
+                ],
                 "urgency_signal": "routine",
             },
             transcript=transcript,
@@ -183,4 +241,12 @@ def test_service_passes_transcript_and_stt_json_to_extractor():
         "stt_json": stt_json,
     }
     assert result.request.type == "reschedule"
-    assert result.request.preferred_times == ["Friday afternoon"]
+    assert result.request.preferred_times == [
+        {
+            "raw_text": "Friday afternoon",
+            "date": None,
+            "start_time": None,
+            "end_time": None,
+            "time_of_day": "afternoon",
+        }
+    ]

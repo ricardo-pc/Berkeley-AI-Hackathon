@@ -6,7 +6,7 @@
   "insurance_plan": "Blue Cross PPO",
   "request": {
     "type": "refill",
-    "details": "Refill for Lisinopril 10 milligrams, once daily with food",
+    "details": "Refill for Lisinopril 10 milligrams, once daily with food.",
     "orders": [
       "Lisinopril"
     ],
@@ -16,7 +16,7 @@
   "requests": [
     {
       "type": "refill",
-      "details": "Refill for Lisinopril 10 milligrams, once daily with food",
+      "details": "Refill for Lisinopril 10 milligrams, once daily with food.",
       "orders": [
         "Lisinopril"
       ],

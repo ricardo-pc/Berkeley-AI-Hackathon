@@ -9,7 +9,7 @@
     "details": "Caller reports feeling dizzy and nauseous since starting Sertraline three days ago and requests that Dr. Lee be notified.",
     "orders": [],
     "preferred_times": [],
-    "urgency_signal": "urgent"
+    "urgency_signal": "unknown"
   },
   "requests": [
     {
@@ -17,7 +17,7 @@
       "details": "Caller reports feeling dizzy and nauseous since starting Sertraline three days ago and requests that Dr. Lee be notified.",
       "orders": [],
       "preferred_times": [],
-      "urgency_signal": "urgent"
+      "urgency_signal": "unknown"
     }
   ],
   "missing_fields": [],

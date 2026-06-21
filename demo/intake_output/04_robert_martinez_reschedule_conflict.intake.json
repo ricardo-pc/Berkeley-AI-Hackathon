@@ -9,7 +9,12 @@
     "details": "Move appointment to June 24th around 3 in the afternoon with Dr. Lee",
     "orders": [],
     "preferred_times": [
-      "June 24th around 3 in the afternoon"
+      {
+        "raw_text": "June 24th around 3 in the afternoon",
+        "date": "2026-06-24",
+        "start_time": "15:00",
+        "time_of_day": "afternoon"
+      }
     ],
     "urgency_signal": "routine"
   },
@@ -19,7 +24,12 @@
       "details": "Move appointment to June 24th around 3 in the afternoon with Dr. Lee",
       "orders": [],
       "preferred_times": [
-        "June 24th around 3 in the afternoon"
+        {
+          "raw_text": "June 24th around 3 in the afternoon",
+          "date": "2026-06-24",
+          "start_time": "15:00",
+          "time_of_day": "afternoon"
+        }
       ],
       "urgency_signal": "routine"
     }

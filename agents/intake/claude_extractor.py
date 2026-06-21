@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import ValidationError
@@ -43,7 +44,17 @@ Rules:
 - request.orders should list only medications/orders/items the caller is explicitly asking the clinic to refill, order, schedule, or otherwise act on, such as ["Lisinopril"]. Use [] when none are requested.
 - Do not include medications that are only mentioned as context, history, current medications, side effects, or symptoms. For example, "I feel dizzy since starting Sertraline" is a message relay with orders [].
 - Do not include dosages in request.orders.
-- request.preferred_times is an array of appointment time preferences stated by the caller.
+- request.preferred_times must be an array of objects, never plain strings.
+- Each preferred_times object must have exactly these keys: raw_text, date, start_time, time_of_day.
+- raw_text is the caller's original time phrase, such as "June 24th at 3 PM".
+- The user message includes reference_date (the date the voicemail was received, YYYY-MM-DD) and reference_weekday (its day of the week). Treat reference_date as "today" and use it to resolve every relative or partial date phrase into a concrete date.
+- date must be a concrete YYYY-MM-DD calendar date. Resolve it whenever the caller names a specific day, even relatively; only use null when the caller gives no day at all, such as "sometime next week" or a bare "in the morning".
+- Resolve relative phrases against reference_date: "today" is reference_date, "tomorrow" is reference_date plus one day, and a weekday name such as "Tuesday", "this Tuesday", or "next Tuesday" is the soonest date strictly after reference_date that falls on that weekday. The resolved date's weekday must match the weekday the caller named.
+- If the caller states a month and day with no year, such as "June 24th", choose the year that makes the date fall on or after reference_date.
+- start_time must be a 24-hour HH:MM string when a specific time is stated; otherwise null.
+- time_of_day must be one of: morning, afternoon, evening, anytime, unknown.
+- Example (reference_date 2026-06-20): "June 24th at 3 PM" should become {"raw_text":"June 24th at 3 PM","date":"2026-06-24","start_time":"15:00","time_of_day":"afternoon"}.
+- Example (reference_date 2026-06-20, a Saturday): "next Tuesday morning" should become {"raw_text":"next Tuesday morning","date":"2026-06-23","start_time":null,"time_of_day":"morning"}.
 - request.urgency_signal must be one of: routine, urgent, emergency, unknown. Put clinical urgency here, not in request.type.
 - missing_fields should include any missing required intake fields from:
   first_name, last_name, date_of_birth, phone_number, request.details, insurance_plan.
@@ -72,6 +83,7 @@ def extract_intake_fields_with_claude(
     stt_json: dict[str, Any],
     api_key: str | None = None,
     client: Any | None = None,
+    reference_date: date | None = None,
 ) -> IntakeExtraction:
     resolved_key = get_anthropic_api_key(api_key)
 
@@ -79,6 +91,8 @@ def extract_intake_fields_with_claude(
         import anthropic
 
         client = anthropic.Anthropic(api_key=resolved_key)
+
+    resolved_reference_date = _resolve_reference_date(stt_json, reference_date)
 
     message = client.messages.create(
         model=CLAUDE_MODEL,
@@ -92,6 +106,8 @@ def extract_intake_fields_with_claude(
                     {
                         "transcript": transcript,
                         "stt_json": stt_json,
+                        "reference_date": resolved_reference_date.isoformat(),
+                        "reference_weekday": resolved_reference_date.strftime("%A"),
                     }
                 ),
             }
@@ -106,6 +122,29 @@ def extract_intake_fields_with_claude(
         raise ClaudeExtractionError() from exc
 
     return extraction
+
+
+def _resolve_reference_date(
+    stt_json: dict[str, Any], reference_date: date | None
+) -> date:
+    """Date to treat as "today" when resolving relative time phrases.
+
+    Prefers an explicit override, then the voicemail's recorded timestamp from
+    the STT payload, and finally falls back to the current date.
+    """
+    if reference_date is not None:
+        return reference_date
+
+    created = (
+        ((stt_json.get("raw_provider_response") or {}).get("metadata") or {}).get("created")
+    )
+    if isinstance(created, str) and created.strip():
+        try:
+            return datetime.fromisoformat(created.replace("Z", "+00:00")).date()
+        except ValueError:
+            pass
+
+    return date.today()
 
 
 def _text_from_message(message: Any) -> str:

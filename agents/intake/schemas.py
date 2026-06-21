@@ -13,7 +13,7 @@ class IntakeRequestDetails(BaseModel):
     type: RequestType = "unknown"
     details: str = ""
     orders: List[str] = Field(default_factory=list)
-    preferred_times: List[str] = Field(default_factory=list)
+    preferred_times: List[Dict[str, Any]] = Field(default_factory=list)
     urgency_signal: UrgencySignal = "unknown"
 
 

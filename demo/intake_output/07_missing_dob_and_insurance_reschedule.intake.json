@@ -9,7 +9,12 @@
     "details": "Caller needs to move their appointment to next Tuesday morning.",
     "orders": [],
     "preferred_times": [
-      "next Tuesday morning"
+      {
+        "raw_text": "next Tuesday morning",
+        "date": "2026-06-23",
+        "start_time": null,
+        "time_of_day": "morning"
+      }
     ],
     "urgency_signal": "routine"
   },
@@ -19,7 +24,12 @@
       "details": "Caller needs to move their appointment to next Tuesday morning.",
       "orders": [],
       "preferred_times": [
-        "next Tuesday morning"
+        {
+          "raw_text": "next Tuesday morning",
+          "date": "2026-06-23",
+          "start_time": null,
+          "time_of_day": "morning"
+        }
       ],
       "urgency_signal": "routine"
     }

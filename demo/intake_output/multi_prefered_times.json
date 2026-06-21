@@ -1,0 +1,63 @@
+{
+  "first_name": "David",
+  "last_name": "Okafor",
+  "date_of_birth": "1990-07-09",
+  "phone_number": "(415) 555-0188",
+  "insurance_plan": "Blue Cross Blue Shield",
+  "request": {
+    "type": "reschedule",
+    "details": "Reschedule appointment with Dr. Lee",
+    "orders": [],
+    "preferred_times": [
+      {
+        "raw_text": "next Tuesday morning",
+        "date": "2026-06-23",
+        "start_time": null,
+        "time_of_day": "morning"
+      },
+      {
+        "raw_text": "Thursday at 2 PM",
+        "date": "2026-06-25",
+        "start_time": "14:00",
+        "time_of_day": "afternoon"
+      },
+      {
+        "raw_text": "anytime Friday afternoon",
+        "date": "2026-06-26",
+        "start_time": null,
+        "time_of_day": "afternoon"
+      }
+    ],
+    "urgency_signal": "routine"
+  },
+  "requests": [
+    {
+      "type": "reschedule",
+      "details": "Reschedule appointment with Dr. Lee",
+      "orders": [],
+      "preferred_times": [
+        {
+          "raw_text": "next Tuesday morning",
+          "date": "2026-06-23",
+          "start_time": null,
+          "time_of_day": "morning"
+        },
+        {
+          "raw_text": "Thursday at 2 PM",
+          "date": "2026-06-25",
+          "start_time": "14:00",
+          "time_of_day": "afternoon"
+        },
+        {
+          "raw_text": "anytime Friday afternoon",
+          "date": "2026-06-26",
+          "start_time": null,
+          "time_of_day": "afternoon"
+        }
+      ],
+      "urgency_signal": "routine"
+    }
+  ],
+  "missing_fields": [],
+  "transcript": "Hi, this is David Okafor, date of birth July 9th, 1990. I need to reschedule my appointment with Dr. Lee. I'm pretty flexible, so I could come in next Tuesday morning, or if that's full, Thursday at 2 PM works too, and honestly anytime Friday afternoon would also be fine. My insurance is Blue Cross Blue Shield and my callback number is (415) 555-0188. Thanks."
+}
