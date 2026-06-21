@@ -1,126 +1,211 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import type { Task, TaskStatus } from "@/lib/types";
-import { REQUEST_TYPE_ORDER } from "@/lib/types";
-import { SEED_TASKS } from "@/lib/mockData";
+import type { Task } from "@/lib/types";
+import { bucketOf, sortForReview } from "@/lib/task";
 import AppHeader from "./AppHeader";
 import DigestStrip from "./DigestStrip";
-import StatusTabs, { type TabKey } from "./StatusTabs";
-import TaskGroup from "./TaskGroup";
+import TaskSection from "./TaskSection";
 import Toast from "./Toast";
 
-const PENDING_STATUSES: TaskStatus[] = [
-  "ready",
-  "needs_info",
-  "pending",
-  "escalated",
-];
+type Decision = "approve" | "reject" | "action_taken" | "mark_done";
 
 interface ToastState {
   message: string;
   previous: Task | null; // snapshot for Undo
+  tone: "success" | "error";
 }
 
-export default function DashboardClient() {
-  const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
-  const [tab, setTab] = useState<TabKey>("all");
+interface DashboardClientProps {
+  initialTasks: Task[];
+  /** True when the DB/env wasn't reachable and we're on local fixtures. */
+  usingFixtures: boolean;
+}
+
+const NOW_ISO = "2026-06-21T09:00:00Z";
+
+export default function DashboardClient({ initialTasks, usingFixtures }: DashboardClientProps) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const counts: Record<TabKey, number> = useMemo(
-    () => ({
-      all: tasks.length,
-      pending: tasks.filter((t) => t.status !== "done").length,
-      done: tasks.filter((t) => t.status === "done").length,
-    }),
-    [tasks],
-  );
+  const { toReview, followUp, done } = useMemo(() => {
+    const groups = { toReview: [] as Task[], followUp: [] as Task[], done: [] as Task[] };
+    for (const t of tasks) {
+      const b = bucketOf(t);
+      if (b === "to_review") groups.toReview.push(t);
+      else if (b === "follow_up") groups.followUp.push(t);
+      else groups.done.push(t);
+    }
+    return { toReview: sortForReview(groups.toReview), followUp: groups.followUp, done: groups.done };
+  }, [tasks]);
 
-  const visible = useMemo(() => {
-    if (tab === "pending") return tasks.filter((t) => t.status !== "done");
-    if (tab === "done") return tasks.filter((t) => t.status === "done");
-    return tasks;
-  }, [tasks, tab]);
-
-  function updateStatus(id: string, status: TaskStatus) {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+  function flash(id: string) {
+    setFlashId(id);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlashId(null), 900);
   }
 
-  function handleAction(task: Task) {
-    // Only "approve" auto-completes. Review/call/open mark the task as awaiting a
-    // human and never silently execute clinical work.
-    if (task.action.kind !== "approve") {
-      const label =
-        task.action.kind === "open" || task.action.kind === "call"
-          ? "pending"
-          : "needs_info";
-      // Surface that the row now needs a person; keep it out of "Done".
-      updateStatus(task.id, label as TaskStatus);
-      setToast({
-        message:
-          task.action.kind === "open"
-            ? `Escalation opened for ${task.patient.name} — call now`
-            : `Flagged ${task.patient.name} for a human follow-up`,
-        previous: null,
-      });
+  function replaceTask(id: string, next: Task) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? next : t)));
+  }
+
+  // Optimistically apply `optimistic`, then persist the decision via the API.
+  // On fixtures (no DB) we skip the network and keep the local state. On error
+  // we revert and surface it. The decision→DB-column mapping lives server-side.
+  async function applyDecision(
+    task: Task,
+    decision: Decision,
+    note: string,
+    optimistic: Partial<Task>,
+    message: string,
+  ) {
+    setProcessingId(task.id);
+    const snapshot = task;
+    replaceTask(task.id, { ...task, ...optimistic });
+
+    if (usingFixtures) {
+      setTimeout(() => {
+        setProcessingId(null);
+        setToast({ message, previous: snapshot, tone: "success" });
+        flash(task.id);
+      }, 350);
       return;
     }
 
-    // Simulate the action agent executing (>300ms → show spinner per UX rules).
-    setProcessingId(task.id);
-    setTimeout(() => {
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, note }),
+      });
+      if (!res.ok) {
+        const { error } = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(error ?? `Request failed (${res.status})`);
+      }
+      const { task: updated, notice } = (await res.json()) as { task: Task; notice?: string };
+      replaceTask(task.id, updated);
+      setToast({ message: notice ? `${message} · ${notice}` : message, previous: snapshot, tone: "success" });
+      flash(task.id);
+    } catch (err) {
+      replaceTask(task.id, snapshot); // revert
+      const detail = err instanceof Error ? err.message : "Unknown error";
+      setToast({ message: `Couldn't save — ${detail}`, previous: null, tone: "error" });
+    } finally {
       setProcessingId(null);
-      updateStatus(task.id, "done");
-      setToast({ message: `Approved: ${task.summary}`, previous: task });
+    }
+  }
 
-      // brief success flash on the row
-      setFlashId(task.id);
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setFlashId(null), 900);
-    }, 600);
+  function handleApprove(task: Task, note: string) {
+    applyDecision(
+      task,
+      "approve",
+      note,
+      { status: "complete", approved_at: NOW_ISO, reviewed_at: NOW_ISO, chw_note: note || null },
+      `Approved — ${task.patient_name}`,
+    );
+  }
+
+  function handleReject(task: Task, note: string) {
+    applyDecision(
+      task,
+      "reject",
+      note,
+      { status: "rejected", rejected_at: NOW_ISO, reviewed_at: NOW_ISO, chw_note: note || null },
+      `Rejected — ${task.patient_name} moved to follow-up`,
+    );
+  }
+
+  function handleActionTaken(task: Task, note: string) {
+    applyDecision(
+      task,
+      "action_taken",
+      note,
+      { status: "complete", approved_at: NOW_ISO, reviewed_at: NOW_ISO, chw_note: note || null },
+      `Marked handled — ${task.patient_name}`,
+    );
+  }
+
+  function handleMarkDone(task: Task) {
+    applyDecision(
+      task,
+      "mark_done",
+      "",
+      { status: "complete", approved_at: NOW_ISO },
+      `Closed out — ${task.patient_name}`,
+    );
   }
 
   function handleUndo() {
     if (!toast?.previous) return;
     const prev = toast.previous;
-    setTasks((cur) => cur.map((t) => (t.id === prev.id ? prev : t)));
+    replaceTask(prev.id, prev);
+    // On a live DB, undo also re-opens the task server-side (restores its prior
+    // review status and clears the decision audit fields).
+    if (!usingFixtures) {
+      void fetch(`/api/tasks/${prev.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: "reopen", status: prev.status }),
+      }).catch(() => {});
+    }
     setToast(null);
   }
 
-  const pendingCount = counts.pending;
-
   return (
     <div className="flex min-h-full flex-col">
-      <AppHeader chwName="Riya Shah" pendingCount={pendingCount} />
+      <AppHeader chwName="Riya Shah" active="queue" pendingCount={toReview.length} />
+
+      {usingFixtures && (
+        <div className="bg-warning-soft px-4 py-1.5 text-center text-xs font-semibold text-accent">
+          Demo data — not connected to the live database
+        </div>
+      )}
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         <DigestStrip tasks={tasks} />
 
-        <div className="mt-6 flex items-center justify-between">
-          <h2 className="text-base font-bold text-navy">Request lanes</h2>
-          <StatusTabs active={tab} counts={counts} onChange={setTab} />
-        </div>
-
-        <div className="mt-4 space-y-4">
-          {REQUEST_TYPE_ORDER.map((type) => (
-            <TaskGroup
-              key={type}
-              type={type}
-              tasks={visible.filter((t) => t.type === type)}
-              processingId={processingId}
-              flashId={flashId}
-              onAction={handleAction}
-            />
-          ))}
+        <div className="mt-6 space-y-4">
+          <TaskSection
+            bucket="to_review"
+            tasks={toReview}
+            processingId={processingId}
+            flashId={flashId}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onActionTaken={handleActionTaken}
+            onMarkDone={handleMarkDone}
+          />
+          <TaskSection
+            bucket="follow_up"
+            tasks={followUp}
+            processingId={processingId}
+            flashId={flashId}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onActionTaken={handleActionTaken}
+            onMarkDone={handleMarkDone}
+          />
+          <TaskSection
+            bucket="done"
+            tasks={done}
+            processingId={processingId}
+            flashId={flashId}
+            defaultOpen={false}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onActionTaken={handleActionTaken}
+            onMarkDone={handleMarkDone}
+          />
         </div>
       </main>
 
       {toast && (
         <Toast
           message={toast.message}
+          tone={toast.tone}
           onUndo={toast.previous ? handleUndo : undefined}
           onDismiss={() => setToast(null)}
         />

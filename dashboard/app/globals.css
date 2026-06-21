@@ -1,36 +1,38 @@
 @import "tailwindcss";
 
 /*
-  Voicemail Ops — Data-Dense Dashboard theme.
-  Brand carried over from the original clinical landing page (teal/navy/amber/red),
-  mapped to semantic tokens per ui-ux-pro-max `color-semantic`.
+  Voicemail Ops — Dashboard theme, matched to the berkapp EHR mock:
+  slate neutrals + sky primary (positive/approve) + teal header chrome,
+  amber = warning, rose = danger. Mapped to semantic tokens per
+  ui-ux-pro-max `color-semantic`.
 */
 @theme {
-  --color-background: #f8fbfa;
+  --color-background: #f8fafc; /* slate-50 */
   --color-surface: #ffffff;
-  --color-surface-muted: #eef5f3;
-  --color-foreground: #102026;
-  --color-muted-foreground: #5f6d73;
+  --color-surface-muted: #f1f5f9; /* slate-100 */
+  --color-foreground: #0f172a; /* slate-900 */
+  --color-muted-foreground: #64748b; /* slate-500 */
 
-  --color-primary: #0f766e; /* teal */
-  --color-primary-deep: #0c4f4a;
+  --color-primary: #0284c7; /* sky-600 — primary actions / positive */
+  --color-primary-deep: #075985; /* sky-800 */
   --color-on-primary: #ffffff;
 
-  --color-navy: #183047;
-  --color-accent: #c9821c; /* amber — warnings / needs-attention */
-  --color-destructive: #bd443c; /* red — escalation */
+  --color-navy: #1e293b; /* slate-800 — headings / neutral-dark */
+  --color-accent: #b45309; /* amber-700 — warnings / needs-attention */
+  --color-destructive: #e11d48; /* rose-600 — reject / escalation */
 
-  --color-success: #0f766e;
-  --color-success-soft: #e4f4ef;
-  --color-warning-soft: #fbf0db;
-  --color-destructive-soft: #fbe6e4;
+  --color-success: #0369a1; /* sky-700 — passed checks (positive = sky family) */
+  --color-success-soft: #e0f2fe; /* sky-100 */
+  --color-warning-soft: #fef3c7; /* amber-100 */
+  --color-destructive-soft: #ffe4e6; /* rose-100 */
 
-  --color-border: #d8e3e0;
-  --color-ring: #0f766e;
+  --color-border: #cbd5e1; /* slate-300 */
+  --color-ring: #0284c7; /* sky-600 */
 
-  --radius: 8px;
+  --radius: 6px;
 
-  --font-sans: var(--font-inter), Arial, sans-serif;
+  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 * {
