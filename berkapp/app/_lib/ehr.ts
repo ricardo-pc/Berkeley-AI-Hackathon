@@ -233,6 +233,122 @@ export async function getPatients(): Promise<PatientSummary[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// ---- scheduler (day view) ----
+
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+function hhmmToMinutes(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(value);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+function utcMinutes(iso: string): number {
+  const d = new Date(iso);
+  return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+
+export type ScheduleProvider = {
+  id: string;
+  name: string;
+  specialty: string;
+  // Working window for the selected weekday, as minutes from midnight (UTC).
+  availStartMin: number | null;
+  availEndMin: number | null;
+};
+
+export type ScheduleAppointment = {
+  id: string;
+  providerId: string | null;
+  patientId: string;
+  patientName: string; // "Last, First"
+  patientDob: string; // MM/DD/YYYY
+  patientPhone: string;
+  startISO: string;
+  startMinutes: number;
+  endMinutes: number;
+  visitType: string;
+  status: string;
+};
+
+export type DaySchedule = {
+  providers: ScheduleProvider[];
+  appointments: ScheduleAppointment[];
+};
+
+// Pulls every appointment on a given calendar day (YYYY-MM-DD, UTC) and shapes
+// it for the eClinicalWorks-style column-per-provider grid.
+export async function getDaySchedule(dateISO: string): Promise<DaySchedule> {
+  const db = supabaseAdmin();
+
+  const dayStart = `${dateISO}T00:00:00Z`;
+  const next = new Date(dayStart);
+  next.setUTCDate(next.getUTCDate() + 1);
+  const dayEnd = next.toISOString();
+  const weekday = WEEKDAY_KEYS[new Date(dayStart).getUTCDay()];
+
+  const [provRes, apptRes] = await Promise.all([
+    db.from("providers").select("id,name,specialty,availability").order("name"),
+    db
+      .from("appointments")
+      .select("*")
+      .gte("start_time", dayStart)
+      .lt("start_time", dayEnd)
+      .order("start_time"),
+  ]);
+
+  type ProviderAvailRow = ProviderRow & {
+    availability: Record<string, [string, string]> | null;
+  };
+
+  const providers: ScheduleProvider[] = ((provRes.data ?? []) as ProviderAvailRow[]).map(
+    (p) => {
+      const window = p.availability?.[weekday] ?? null;
+      return {
+        id: p.id,
+        name: p.name,
+        specialty: p.specialty ?? "—",
+        availStartMin: window ? hhmmToMinutes(window[0]) : null,
+        availEndMin: window ? hhmmToMinutes(window[1]) : null,
+      };
+    },
+  );
+
+  const appts = (apptRes.data ?? []) as AppointmentRow[];
+  const patientIds = [...new Set(appts.map((a) => a.patient_id))];
+
+  const patientsById = new Map<string, PatientRow>();
+  if (patientIds.length) {
+    const { data } = await db
+      .from("patients")
+      .select("id,first_name,last_name,date_of_birth,phone")
+      .in("id", patientIds);
+    for (const p of (data ?? []) as PatientRow[]) patientsById.set(p.id, p);
+  }
+
+  const appointments: ScheduleAppointment[] = appts.map((a) => {
+    const p = patientsById.get(a.patient_id);
+    const startMinutes = utcMinutes(a.start_time);
+    const endMinutes = a.end_time ? utcMinutes(a.end_time) : startMinutes + 30;
+    return {
+      id: a.id,
+      providerId: a.provider_id,
+      patientId: a.patient_id,
+      patientName: p ? `${p.last_name}, ${p.first_name}` : "Unknown patient",
+      patientDob: fmtDate(p?.date_of_birth),
+      patientPhone: p?.phone ?? "—",
+      startISO: a.start_time,
+      startMinutes,
+      endMinutes: Math.max(endMinutes, startMinutes + 15),
+      visitType: prettyVisitType(a.visit_type),
+      status: a.status ?? "scheduled",
+    };
+  });
+
+  return { providers, appointments };
+}
+
 export async function getPatientBundle(id: string): Promise<PatientBundle | null> {
   const db = supabaseAdmin();
 

@@ -42,11 +42,21 @@ export function TopBar() {
             <sup className="ml-0.5 text-[8px]">®</sup>
           </span>
           <nav className="hidden gap-1 md:flex">
-            {topMenus.map((m) => (
-              <button key={m} className="rounded px-2 py-1 text-xs hover:bg-white/15">
-                {m}
-              </button>
-            ))}
+            {topMenus.map((m) =>
+              m === "Schedule" ? (
+                <Link
+                  key={m}
+                  href="/schedule"
+                  className="rounded px-2 py-1 text-xs hover:bg-white/15"
+                >
+                  {m}
+                </Link>
+              ) : (
+                <button key={m} className="rounded px-2 py-1 text-xs hover:bg-white/15">
+                  {m}
+                </button>
+              ),
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -69,16 +79,20 @@ export function TopBar() {
         >
           ▤ Patient List
         </Link>
-        {["New Tel Encounter", "Rx", "Labs", "Schedule", "Hub", "Messages", "Print"].map(
-          (t) => (
-            <button
-              key={t}
-              className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
-            >
-              {t}
-            </button>
-          ),
-        )}
+        <Link
+          href="/schedule"
+          className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
+        >
+          Schedule
+        </Link>
+        {["New Tel Encounter", "Rx", "Labs", "Hub", "Messages", "Print"].map((t) => (
+          <button
+            key={t}
+            className="rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 hover:border-slate-300 hover:bg-white"
+          >
+            {t}
+          </button>
+        ))}
         <div className="ml-auto flex items-center gap-1">
           <input
             placeholder="Search patient (name / DOB / MRN)…"
