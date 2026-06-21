@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { Task } from "@/lib/types";
 import { bucketOf, sortForReview } from "@/lib/task";
+import { useLiveTasks } from "@/lib/useLiveTasks";
 import AppShell from "./AppShell";
 import DigestStrip from "./DigestStrip";
 import TaskSection from "./TaskSection";
@@ -31,8 +32,8 @@ interface DashboardClientProps {
 const NOW_ISO = "2026-06-21T09:00:00Z";
 
 export default function DashboardClient({ initialTasks, usingFixtures }: DashboardClientProps) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [tasks, setTasks] = useLiveTasks(initialTasks, !usingFixtures && processingId === null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,11 +152,14 @@ export default function DashboardClient({ initialTasks, usingFixtures }: Dashboa
     // On a live DB, undo also re-opens the task server-side (restores its prior
     // review status and clears the decision audit fields).
     if (!usingFixtures) {
+      setProcessingId(prev.id);
       void fetch(`/api/tasks/${prev.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ decision: "reopen", status: prev.status }),
-      }).catch(() => {});
+      })
+        .catch(() => {})
+        .finally(() => setProcessingId(null));
     }
     setToast(null);
   }

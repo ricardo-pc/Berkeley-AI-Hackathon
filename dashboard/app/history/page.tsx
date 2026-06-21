@@ -2,7 +2,6 @@ import AppShell from "@/components/AppShell";
 import HistoryTable from "@/components/HistoryTable";
 import { getTasks } from "@/lib/tasks-repo";
 import { SEED_TASKS } from "@/lib/mockData";
-import { isDecided } from "@/lib/task";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +18,6 @@ export default async function HistoryPage() {
     console.error("[history] falling back to fixtures:", err);
   }
 
-  const decided = tasks.filter(isDecided);
-
   return (
     <AppShell
       chwName="Riya Shah"
@@ -29,7 +26,7 @@ export default async function HistoryPage() {
       title="Decision history"
       subtitle="Every request you've approved, rejected, or handled — filter and review past decisions."
     >
-      <HistoryTable tasks={decided} />
+      <HistoryTable tasks={tasks} usingFixtures={usingFixtures} />
     </AppShell>
   );
 }

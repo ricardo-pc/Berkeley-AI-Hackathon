@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { ArrowDownUp, Search } from "lucide-react";
 import type { Task, TaskType } from "@/lib/types";
 import { TASK_TYPE_TAG } from "@/lib/types";
-import { decisionLabel, decisionTime, type DecisionTone } from "@/lib/task";
+import { decisionLabel, decisionTime, isDecided, type DecisionTone } from "@/lib/task";
 import { initials, avatarColor } from "@/lib/avatar";
+import { useLiveTasks } from "@/lib/useLiveTasks";
 
 interface HistoryTableProps {
   tasks: Task[];
+  usingFixtures: boolean;
 }
 
 type DecisionFilter = "all" | "approve" | "reject" | "handle";
@@ -45,7 +47,8 @@ function fmt(iso: string): string {
   });
 }
 
-export default function HistoryTable({ tasks }: HistoryTableProps) {
+export default function HistoryTable({ tasks: initialTasks, usingFixtures }: HistoryTableProps) {
+  const [tasks] = useLiveTasks(initialTasks, !usingFixtures);
   const [query, setQuery] = useState("");
   const [decision, setDecision] = useState<DecisionFilter>("all");
   const [type, setType] = useState<TaskType | "all">("all");
@@ -54,6 +57,7 @@ export default function HistoryTable({ tasks }: HistoryTableProps) {
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = tasks.filter((t) => {
+      if (!isDecided(t)) return false;
       const d = decisionLabel(t);
       if (decision !== "all" && d.tone !== decision) return false;
       if (type !== "all" && t.task_type !== type) return false;
