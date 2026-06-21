@@ -76,6 +76,10 @@ class IntakeExtraction(BaseModel):
 class OrchestratorRequest(BaseModel):
     intake: IntakeExtraction
     task_id: str | None = None
+    # New voicemail -> new task row. When task_id is None the orchestrator inserts
+    # a fresh task after the eligibility check decides the outcome; voicemail_id
+    # links that task back to the voicemail it came from (nullable, like the seed).
+    voicemail_id: str | None = None
 
 
 class OrchestratorRepo:
@@ -94,6 +98,11 @@ class OrchestratorRepo:
         )
         rows = response.data or []
         return rows[0] if rows else None
+
+    def insert_task(self, fields: dict[str, Any]) -> dict[str, Any]:
+        response = self._client.table("tasks").insert(fields).execute()
+        rows = response.data or []
+        return rows[0] if rows else {}
 
     def get_next_scheduled_appointment(self, patient_id: str) -> dict[str, Any] | None:
         response = (
@@ -131,7 +140,12 @@ async def create_refill_check(payload: OrchestratorRequest):
         return patient_or_response
     insurance_response = _insurance_escalation(patient_or_response, "prescription_refill")
     if insurance_response:
-        return insurance_response
+        return _persist_new_task(
+            payload,
+            task_type="prescription_refill",
+            patient_id=patient_or_response["id"],
+            result=insurance_response,
+        )
 
     prescription_or_response = _prescription_from_intake(payload.intake)
     if isinstance(prescription_or_response, JSONResponse):
@@ -151,7 +165,12 @@ async def create_refill_check(payload: OrchestratorRequest):
         return JSONResponse(status_code=exc.status_code, content=prescription_error_payload(exc))
 
     result["denial_notice"] = _send_denial_notice("prescription_refill", result)
-    return result
+    return _persist_new_task(
+        payload,
+        task_type="prescription_refill",
+        patient_id=patient_or_response["id"],
+        result=result,
+    )
 
 
 @app.post("/api/reschedule")
@@ -168,7 +187,12 @@ async def create_reschedule_check(payload: OrchestratorRequest):
         return patient_or_response
     insurance_response = _insurance_escalation(patient_or_response, "reschedule")
     if insurance_response:
-        return insurance_response
+        return _persist_new_task(
+            payload,
+            task_type="reschedule",
+            patient_id=patient_or_response["id"],
+            result=insurance_response,
+        )
 
     provider_id = patient_or_response.get("preferred_provider_id")
     if not provider_id:
@@ -199,7 +223,12 @@ async def create_reschedule_check(payload: OrchestratorRequest):
         return JSONResponse(status_code=exc.status_code, content=schedule_error_payload(exc))
 
     result["denial_notice"] = _send_denial_notice("reschedule", result)
-    return result
+    return _persist_new_task(
+        payload,
+        task_type="reschedule",
+        patient_id=patient_or_response["id"],
+        result=result,
+    )
 
 
 @app.post("/api/message-relay")
@@ -216,7 +245,12 @@ async def create_message_relay_check(payload: OrchestratorRequest):
         return patient_or_response
     insurance_response = _insurance_escalation(patient_or_response, "message_relay")
     if insurance_response:
-        return insurance_response
+        return _persist_new_task(
+            payload,
+            task_type="message_relay",
+            patient_id=patient_or_response["id"],
+            result=insurance_response,
+        )
 
     message = _compact_text(payload.intake.request.details or payload.intake.transcript)
     if not message:
@@ -224,7 +258,7 @@ async def create_message_relay_check(payload: OrchestratorRequest):
 
     try:
         repo = SupabaseMessageRelayRepo()
-        return run_message_relay_check(
+        result = run_message_relay_check(
             patient_id=patient_or_response["id"],
             first_name=payload.intake.first_name,
             last_name=payload.intake.last_name,
@@ -235,6 +269,13 @@ async def create_message_relay_check(payload: OrchestratorRequest):
         )
     except MessageRelayError as exc:
         return JSONResponse(status_code=exc.status_code, content=message_relay_error_payload(exc))
+
+    return _persist_new_task(
+        payload,
+        task_type="message_relay",
+        patient_id=patient_or_response["id"],
+        result=result,
+    )
 
 
 def _resolve_patient_from_intake(intake: IntakeExtraction) -> dict[str, Any] | JSONResponse:
@@ -277,6 +318,46 @@ def _insurance_escalation(patient: dict[str, Any], task_type: str) -> dict[str, 
         "proposed_action": {"type": "escalate", "reason": "insurance plan not accepted"},
         "task_type": task_type,
     }
+
+
+def _persist_new_task(
+    payload: OrchestratorRequest,
+    *,
+    task_type: str,
+    patient_id: str | None,
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    """Insert a new task row for a freshly-processed voicemail; return `result`
+    with the new task id attached.
+
+    Only inserts when the request carried no existing task_id -- a task_id means
+    the eligibility service already updated that row in place, so inserting again
+    would duplicate it. Mirrors the columns the eligibility services write on
+    update (status / agent_summary / agent_checks / proposed_action /
+    flagged_reason) plus the voicemail + patient links. Called after the
+    eligibility/insurance decision so the persisted status reflects whether the
+    request was approved-pending or escalated.
+    """
+    if payload.task_id:
+        return result
+
+    row = OrchestratorRepo().insert_task(
+        {
+            "voicemail_id": payload.voicemail_id,
+            "patient_id": patient_id,
+            "task_type": task_type,
+            "status": result.get("status"),
+            "agent_summary": result.get("agent_summary"),
+            # prescription/scheduling return "checks"; message_relay returns "agent_checks".
+            "agent_checks": result.get("agent_checks") or result.get("checks") or {},
+            "proposed_action": result.get("proposed_action"),
+            "flagged_reason": result.get("flagged_reason"),
+        }
+    )
+    new_id = row.get("id")
+    if new_id:
+        result["task_id"] = new_id
+    return result
 
 
 def _next_scheduled_appointment(patient_id: str) -> dict[str, Any] | None:
