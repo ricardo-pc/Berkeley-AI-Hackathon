@@ -52,6 +52,7 @@ def book_appointment(
         end_time=end_time,
         visit_type=visit_type,
     )
+    provider = repo.get_provider(provider_id)
 
     return {
         "success": True,
@@ -74,5 +75,6 @@ def book_appointment(
             "end_time": appointment.get("end_time", end_time.isoformat()),
             "visit_type": appointment.get("visit_type", visit_type),
             "status": appointment.get("status", "scheduled"),
+            "provider_name": (provider or {}).get("name"),
         },
     }

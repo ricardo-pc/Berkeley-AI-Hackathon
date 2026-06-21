@@ -18,6 +18,8 @@ class SchedulerRepo(Protocol):
 
     def find_patient(self, first_name: str, last_name: str, dob: str) -> dict[str, Any] | None: ...
 
+    def get_provider(self, provider_id: str) -> dict[str, Any] | None: ...
+
     def mark_appointment_rescheduled(self, appointment_id: str) -> bool: ...
 
     def insert_appointment(
@@ -60,6 +62,11 @@ class SupabaseSchedulerRepo:
             .limit(1)
             .execute()
         )
+        rows = response.data or []
+        return rows[0] if rows else None
+
+    def get_provider(self, provider_id: str) -> dict[str, Any] | None:
+        response = self._client.table("providers").select("*").eq("id", provider_id).limit(1).execute()
         rows = response.data or []
         return rows[0] if rows else None
 

@@ -8,6 +8,10 @@ from typing import Any
 # message itself isn't something we confirm by SMS.
 CONFIRMABLE_TASK_TYPES = {"prescription_refill", "reschedule"}
 
+# Demo-only: we don't track which pharmacy a patient uses, so every refill
+# names the same placeholder pharmacy.
+PHARMACY_NAME = "CVS Pharmacy"
+
 
 def build_confirmation_message(task_type: str, result: dict[str, Any]) -> str | None:
     if task_type not in CONFIRMABLE_TASK_TYPES:
@@ -20,16 +24,17 @@ def build_confirmation_message(task_type: str, result: dict[str, Any]) -> str | 
         prescription = result.get("prescription") or {}
         medication = prescription.get("medication_name", "your medication")
         dosage = prescription.get("dosage", "")
-        instructions = prescription.get("instructions", "")
-        message = f"Hi {first_name}, your {medication} {dosage} refill has been approved and will be ready for pickup."
-        if instructions:
-            message += f" Instructions: {instructions}."
-        return message
+        return (
+            f"Hello, {first_name}. Your prescription refill request for {dosage} {medication} "
+            f"has been approved and sent to {PHARMACY_NAME}."
+        )
 
     appointment = result.get("appointment") or {}
     start_time = appointment.get("start_time")
     when = _format_when(start_time) if start_time else "your new time"
-    return f"Hi {first_name}, your appointment has been rescheduled to {when}. See you then!"
+    provider_name = appointment.get("provider_name")
+    with_doctor = f" with {provider_name}" if provider_name else ""
+    return f"Hi {first_name}, your appointment has been rescheduled to {when}{with_doctor}. See you then!"
 
 
 def _format_when(start_time: str) -> str:
