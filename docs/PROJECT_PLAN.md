@@ -143,9 +143,20 @@ Output:
 }
 ```
 
-### Confirmation Agent — ❌ not built (`agents/confirmation/`)
+### Prescription Fulfillment Agent (action) — ✅ built (`backend/api/prescription_fulfillment/`)
 
-Generates an outbound call script or SMS/email confirmation with all details, follow-up instructions, and what to bring. SMS sponsor still TBD.
+The refill-side counterpart to the Scheduling Agent above — was the missing executor for prescription refills (the eligibility agent only proposed the action; nothing wrote it). Receives an identity and a pre-approved medication/dosage/instructions, resolves the patient, and inserts the new `prescriptions` row. Mirrors the Scheduling Agent's input/output shape (`success`, `patient`, and a `prescription` object instead of `appointment`).
+
+### Confirmation Agent — ✅ built (`backend/api/confirmation/`)
+
+Sends an SMS via Twilio — but **only** for prescription refills and reschedules, never for message relay (there's nothing to confirm back to the patient when the message is going to the doctor). Chained automatically after both action agents:
+
+- `POST /api/appointments` (Scheduling Agent) → reschedule confirmation
+- `POST /api/prescriptions` (Prescription Fulfillment Agent) → refill confirmation
+
+Message text is built by a pure, fully-tested template function (`templates.py`) — easy to tweak without touching any Twilio code. A failed text send is best-effort and never undoes an already-successful booking/refill; the route returns `{"sent": false, "reason": "..."}` instead of erroring.
+
+Sponsor: Twilio (no hackathon sponsor here covers SMS directly — picked for reliability/docs over the free-tier alternatives like TextBelt).
 
 ### Triage Sentinel — ❌ not built, may be cut (`agents/triage/`)
 

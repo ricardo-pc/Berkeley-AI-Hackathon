@@ -10,6 +10,8 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from confirmation.errors import ConfirmationError
+from confirmation.service import send_confirmation
 from intake.errors import IntakeAgentError
 from intake.errors import error_payload as intake_error_payload
 from intake.schemas import IntakeExtraction, to_plain_dict as intake_to_plain_dict
@@ -22,6 +24,11 @@ from prescription_eligibility.errors import PrescriptionEligibilityError
 from prescription_eligibility.errors import error_payload as prescription_error_payload
 from prescription_eligibility.repo import SupabasePrescriptionEligibilityRepo
 from prescription_eligibility.service import run_prescription_eligibility_check
+from prescription_fulfillment.errors import PrescriptionFulfillmentError
+from prescription_fulfillment.errors import error_payload as fulfillment_error_payload
+from prescription_fulfillment.repo import SupabasePrescriptionFulfillmentRepo
+from prescription_fulfillment.schemas import RefillRequest
+from prescription_fulfillment.service import fill_prescription
 from scheduler.errors import SchedulerError
 from scheduler.errors import error_payload as scheduler_error_payload
 from scheduler.repo import SupabaseSchedulerRepo
@@ -267,7 +274,44 @@ async def create_appointment(payload: BookingRequest):
     except SchedulerError as exc:
         return JSONResponse(status_code=exc.status_code, content=scheduler_error_payload(exc))
 
+    result["confirmation"] = _try_send_confirmation("reschedule", result)
     return result
+
+
+@app.post("/api/prescriptions")
+async def create_prescription_refill(payload: RefillRequest):
+    try:
+        repo = SupabasePrescriptionFulfillmentRepo()
+        result = fill_prescription(
+            patient_id=payload.patient_id,
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            dob=payload.dob,
+            medication_name=payload.medication_name,
+            dosage=payload.dosage,
+            instructions=payload.instructions,
+            provider_id=payload.provider_id,
+            repo=repo,
+        )
+    except PrescriptionFulfillmentError as exc:
+        return JSONResponse(status_code=exc.status_code, content=fulfillment_error_payload(exc))
+
+    result["confirmation"] = _try_send_confirmation("prescription_refill", result)
+    return result
+
+
+def _try_send_confirmation(task_type: str, result: dict) -> dict | None:
+    """Best-effort: a confirmation text failing to send must not undo an already-successful booking/refill."""
+    phone_number = (result.get("patient") or {}).get("phone")
+    if not phone_number:
+        return {"sent": False, "reason": "no phone number on file"}
+
+    try:
+        sent = send_confirmation(task_type=task_type, phone_number=phone_number, result=result)
+    except ConfirmationError as exc:
+        return {"sent": False, "reason": str(exc)}
+
+    return {"sent": sent is not None, **(sent or {})}
 
 
 @app.post("/api/message-relay")

@@ -64,6 +64,7 @@ def book_appointment(
             "first_name": patient.get("first_name", first_name),
             "last_name": patient.get("last_name", last_name),
             "dob": patient.get("date_of_birth", dob),
+            "phone": patient.get("phone"),
         },
         "rescheduled_from": rescheduled_from,
         "appointment": {

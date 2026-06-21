@@ -7,4 +7,5 @@ pytest
 respx
 supabase
 anthropic
+twilio
 
