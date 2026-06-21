@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/*
+  Voicemail Ops — Data-Dense Dashboard theme.
+  Brand carried over from the original clinical landing page (teal/navy/amber/red),
+  mapped to semantic tokens per ui-ux-pro-max `color-semantic`.
+*/
+@theme {
+  --color-background: #f8fbfa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef5f3;
+  --color-foreground: #102026;
+  --color-muted-foreground: #5f6d73;
+
+  --color-primary: #0f766e; /* teal */
+  --color-primary-deep: #0c4f4a;
+  --color-on-primary: #ffffff;
+
+  --color-navy: #183047;
+  --color-accent: #c9821c; /* amber — warnings / needs-attention */
+  --color-destructive: #bd443c; /* red — escalation */
+
+  --color-success: #0f766e;
+  --color-success-soft: #e4f4ef;
+  --color-warning-soft: #fbf0db;
+  --color-destructive-soft: #fbe6e4;
+
+  --color-border: #d8e3e0;
+  --color-ring: #0f766e;
+
+  --radius: 8px;
+
+  --font-sans: var(--font-inter), Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  /* tabular figures everywhere keep KPI counts from shifting width */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible focus rings for keyboard users (accessibility / focus-states) */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion: disable transitions/animations on request */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes flash-success {
+  0% {
+    background-color: var(--color-success-soft);
+  }
+  100% {
+    background-color: var(--color-surface);
+  }
+}
+
+.animate-flash {
+  animation: flash-success 900ms ease-out;
+}
