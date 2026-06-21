@@ -17,6 +17,7 @@ cp .env.example .env
 ```
 
 Fill in `DEEPGRAM_API_KEY` in `.env`, or export it in your shell.
+Fill in `ANTHROPIC_API_KEY` to run intake extraction.
 
 ### CLI usage
 
@@ -40,6 +41,28 @@ curl -X POST \
 ```
 
 The API and CLI return the same JSON contract as `contracts/transcription_response.example.json`.
+
+### Compact and intake API usage
+
+```bash
+curl -X POST \
+  -F "file=@../../demo/james.wav" \
+  http://localhost:8000/api/transcriptions/text
+```
+
+```bash
+curl -X POST \
+  -F "file=@../../demo/james.wav" \
+  http://localhost:8000/api/voicemail/intake
+```
+
+```bash
+curl -X POST http://localhost:8000/api/intake \
+  -H "Content-Type: application/json" \
+  -d '{"stt_json":{"transcript":"Hi, this is Maria Gonzalez. I need a refill for Lisinopril 10 milligrams once daily with food."}}'
+```
+
+`/api/intake` and `/api/voicemail/intake` return sanitized intake output: structured patient fields, request content detection, preferred-time objects, missing fields, and compact transcript text.
 
 ## Schedule Adjustment Eligibility Agent
 
@@ -73,8 +96,10 @@ python3 -m scheduling_eligibility.cli \
 
 ### API usage
 
+Workflow endpoints now accept intake-shaped payloads so request routing comes from `intake.request.type`.
+
 ```bash
 curl -X POST http://localhost:8000/api/schedule-eligibility \
   -H "Content-Type: application/json" \
-  -d '{"patient_id":"<uuid>","provider_id":"<uuid>","requested_start":"2026-06-25T09:00:00+00:00","requested_end":"2026-06-25T09:30:00+00:00"}'
+  -d '{"intake":{"first_name":"Robert","last_name":"Martinez","date_of_birth":"1952-01-30","phone_number":"415-555-0174","insurance_plan":"United Healthcare","request":{"type":"reschedule","details":"Move appointment to June 24th at 3 PM","orders":[],"preferred_times":[{"raw_text":"June 24th at 3 PM","date":"2026-06-24","start_time":"15:00","time_of_day":"afternoon"}],"urgency_signal":"routine"},"requests":[],"missing_fields":[],"transcript":"This is Robert Martinez. I need to move my appointment to June 24th at 3 PM."},"provider_id":"b1b2c3d4-0001-0001-0001-000000000001","requested_start":"2026-06-24T15:00:00+00:00","requested_end":"2026-06-24T15:30:00+00:00"}'
 ```
