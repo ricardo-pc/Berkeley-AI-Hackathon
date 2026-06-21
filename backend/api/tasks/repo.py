@@ -50,6 +50,10 @@ class TasksRepo:
         rows = self._c.table("tasks").insert(fields).execute().data or []
         return rows[0] if rows else {}
 
+    def insert_voicemail(self, fields: dict[str, Any]) -> dict[str, Any]:
+        rows = self._c.table("voicemails").insert(fields).execute().data or []
+        return rows[0] if rows else {}
+
     # --- joins ---
     def patients_by_ids(self, ids: list[str]) -> dict[str, dict[str, Any]]:
         if not ids:

@@ -155,14 +155,23 @@ def test_voicemail_intake_workflow_transcribes_extracts_and_routes(monkeypatch):
         assert stt_json["transcript"] == "Maria needs a refill."
         return IntakeExtraction(**_intake_payload())
 
-    async def fake_route_intake_to_orchestrator(intake: IntakeExtraction, *, task_id: str | None = None):
+    async def fake_route_intake_to_orchestrator(
+        intake: IntakeExtraction, *, task_id: str | None = None, voicemail_id: str | None = None
+    ):
         assert intake.first_name == "Maria"
         assert task_id == "task-1"
+        assert voicemail_id == "voicemail-1"
         return [{"request_type": "refill", "status_code": 200, "result": {"eligible": True}}]
+
+    class FakeVoicemailRepo:
+        def insert_voicemail(self, fields: dict) -> dict:
+            assert fields == {"transcript": "Maria needs a refill."}
+            return {"id": "voicemail-1"}
 
     monkeypatch.setattr(intake_service, "transcribe_audio", fake_transcribe_audio)
     monkeypatch.setattr(intake_service, "run_intake_extraction", fake_run_intake_extraction)
     monkeypatch.setattr(intake_service, "route_intake_to_orchestrator", fake_route_intake_to_orchestrator)
+    monkeypatch.setattr(intake_service, "TasksRepo", FakeVoicemailRepo)
 
     transcription, intake, orchestrator_results = asyncio.run(
         intake_service.run_voicemail_intake_workflow(

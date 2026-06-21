@@ -27,6 +27,7 @@ async def route_intake_to_orchestrator(
     intake: IntakeExtraction,
     *,
     task_id: str | None = None,
+    voicemail_id: str | None = None,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for request in _workflow_requests(intake):
@@ -41,6 +42,7 @@ async def route_intake_to_orchestrator(
                     path=None,
                     status_code=payload["status_code"],
                     error_payload=payload["result"],
+                    voicemail_id=voicemail_id,
                 )
             results.append(payload)
             continue
@@ -48,7 +50,7 @@ async def route_intake_to_orchestrator(
         try:
             response = await _post_to_orchestrator(
                 path_or_response,
-                {"intake": routed_intake, "task_id": task_id},
+                {"intake": routed_intake, "task_id": task_id, "voicemail_id": voicemail_id},
             )
         except httpx.HTTPError as exc:
             results.append(
@@ -67,6 +69,7 @@ async def route_intake_to_orchestrator(
                                 "message": str(exc),
                             }
                         },
+                        voicemail_id=voicemail_id,
                     ),
                 }
             )
@@ -80,6 +83,7 @@ async def route_intake_to_orchestrator(
                 path=path_or_response,
                 status_code=response.status_code,
                 error_payload=result,
+                voicemail_id=voicemail_id,
             )
 
         results.append(
@@ -197,6 +201,7 @@ def _persist_orchestrator_failure_task(
     path: str | None,
     status_code: int | None,
     error_payload: dict[str, Any],
+    voicemail_id: str | None = None,
 ) -> dict[str, Any]:
     error = error_payload.get("error") if isinstance(error_payload.get("error"), dict) else {}
     code = error.get("code") or "orchestrator_failure"
@@ -206,6 +211,7 @@ def _persist_orchestrator_failure_task(
     task = {
         "status": "rejected",
         "task_type": _task_type_for_request(request_type),
+        "voicemail_id": voicemail_id,
         "patient_id": _patient_id_for_intake(intake),
         "agent_summary": "Orchestrator failed while processing this voicemail; manual follow-up required.",
         "agent_checks": {
