@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useActivePatient } from "../../../_components/PatientContext";
+import { useActivePatient, useProviders } from "../../../_components/PatientContext";
 import {
   Button,
   Field,
@@ -11,12 +11,14 @@ import {
   Select,
   Stepper,
 } from "../../../_components/ui";
-import { openSlots, providers, visitTypes } from "../../../_lib/data";
+import { openSlots, visitTypes } from "../../../_lib/constants";
 
 const STEPS = ["Reason / type", "Provider", "Find a slot", "Confirm"];
 
 export default function AppointmentsPage() {
   const patient = useActivePatient();
+  const providers = useProviders();
+  const defaultProvider = providers[0]?.name ?? "";
   const existing = patient.appointments[0];
 
   const [open, setOpen] = useState(false);
@@ -25,7 +27,7 @@ export default function AppointmentsPage() {
   const [done, setDone] = useState(false);
 
   const [visitType, setVisitType] = useState(visitTypes[1]);
-  const [provider, setProvider] = useState(providers[0].name);
+  const [provider, setProvider] = useState(defaultProvider);
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [reason, setReason] = useState("");
@@ -36,7 +38,7 @@ export default function AppointmentsPage() {
     setStep(0);
     setDone(false);
     setVisitType(visitTypes[1]);
-    setProvider(providers[0].name);
+    setProvider(defaultProvider);
     setDay(null);
     setSlot(null);
     setReason(m === "reschedule" ? "Patient requested earlier date" : "");

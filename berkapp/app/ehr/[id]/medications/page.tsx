@@ -11,7 +11,8 @@ import {
   Select,
   Stepper,
 } from "../../../_components/ui";
-import { type Medication, pharmacies } from "../../../_lib/data";
+import { pharmacies } from "../../../_lib/constants";
+import type { Medication } from "../../../_lib/types";
 
 const STEPS = [
   "Select Rx",
@@ -39,7 +40,7 @@ export default function MedicationsPage() {
     setStep(0);
     setDone(false);
     setPharmacy(pharmacies[0]);
-    setQty(med.qty.replace(/[^0-9]/g, "") || "30");
+    setQty((med.qty ?? "").replace(/[^0-9]/g, "") || "30");
     setRefills("1");
     setAckInteraction(false);
     setAckOverride("");
@@ -89,7 +90,7 @@ export default function MedicationsPage() {
                     <div className="font-normal text-slate-400">{m.dose}</div>
                   </td>
                   <td className="py-2 text-slate-600">{m.sig}</td>
-                  <td className="py-2 text-slate-600">{m.qty}</td>
+                  <td className="py-2 text-slate-600">{m.qty ?? "—"}</td>
                   <td className="py-2">
                     <span
                       className={
@@ -98,11 +99,11 @@ export default function MedicationsPage() {
                           : "text-slate-600"
                       }
                     >
-                      {m.refillsLeft}
+                      {m.refillsLeft ?? "—"}
                     </span>
                   </td>
                   <td className="py-2 text-slate-500">{m.lastFilled}</td>
-                  <td className="py-2 text-slate-500">{m.pharmacy}</td>
+                  <td className="py-2 text-slate-500">{m.pharmacy ?? "—"}</td>
                   <td className="py-2 text-right">
                     <Button variant="primary" onClick={() => startRefill(m)}>
                       Refill
@@ -135,7 +136,8 @@ export default function MedicationsPage() {
                 </div>
                 <div className="text-slate-500">{active.sig}</div>
                 <div className="mt-1 text-slate-500">
-                  Prescriber: {active.prescriber} · Refills left: {active.refillsLeft}
+                  Prescriber: {active.prescriber} · Refills left:{" "}
+                  {active.refillsLeft ?? "—"}
                 </div>
               </div>
               {active.refillsLeft === 0 && (

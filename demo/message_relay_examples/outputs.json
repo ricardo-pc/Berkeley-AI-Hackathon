@@ -1,0 +1,494 @@
+[
+  {
+    "input": {
+      "id": "ex01_adverse_reaction",
+      "note": "Priya \u2014 adverse medication reaction, names her real doctor (Dr. Lee). Expect: physician, doctor_matches true.",
+      "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "first_name": "Priya",
+      "last_name": "Sharma",
+      "dob": "1988-09-18",
+      "message": "Hi, this is Priya. I wanted to let Dr. Lee know I've been really dizzy and nauseous ever since I started the Sertraline three days ago. Please let her know."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0005-0005-0005-000000000005",
+        "first_name": "Priya",
+        "last_name": "Sharma",
+        "dob": "1988-09-18"
+      },
+      "worth_relaying": true,
+      "route": "physician",
+      "status": "pending_approval",
+      "agent_summary": "This is an adverse medication reaction with active symptoms (dizziness and nausea) that warrant physician evaluation to determine if dose adjustment, timing change, or discontinuation is needed.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "physician",
+          "category": "adverse_medication_reaction",
+          "draft_message": "Patient Priya reports dizziness and nausea that started three days ago after beginning Sertraline.",
+          "mentioned_doctor": "Dr. Lee",
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": true,
+          "reasoning": "This is an adverse medication reaction with active symptoms (dizziness and nausea) that warrant physician evaluation to determine if dose adjustment, timing change, or discontinuation is needed."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "physician",
+        "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient Priya reports dizziness and nausea that started three days ago after beginning Sertraline."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex02_discomfort_pain",
+      "note": "Maria \u2014 reports ongoing pain. Expect: physician (any discomfort).",
+      "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "first_name": "Maria",
+      "last_name": "Gonzalez",
+      "dob": "1978-03-12",
+      "message": "I've had a sharp pain in my lower right side for two days now and it's not getting better. Can someone get back to me?"
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "first_name": "Maria",
+        "last_name": "Gonzalez",
+        "dob": "1978-03-12"
+      },
+      "worth_relaying": true,
+      "route": "physician",
+      "status": "pending_approval",
+      "agent_summary": "Patient is reporting a persistent sharp pain in the lower right side lasting two days without improvement. This is a clinical concern requiring physician evaluation to rule out appendicitis or other acute conditions.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "physician",
+          "category": "symptom_report",
+          "draft_message": "Patient reports sharp pain in lower right side for two days that is not improving. Requests callback.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient is reporting a persistent sharp pain in the lower right side lasting two days without improvement. This is a clinical concern requiring physician evaluation to rule out appendicitis or other acute conditions."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "physician",
+        "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient reports sharp pain in lower right side for two days that is not improving. Requests callback."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex03_negative_status_update",
+      "note": "Robert \u2014 condition worsening. Expect: physician (negative status update).",
+      "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "first_name": "Robert",
+      "last_name": "Martinez",
+      "dob": "1952-01-30",
+      "message": "My blood pressure readings at home have been climbing all week, up around 165 over 100 this morning. I'm a little worried."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0004-0004-0004-000000000004",
+        "first_name": "Robert",
+        "last_name": "Martinez",
+        "dob": "1952-01-30"
+      },
+      "worth_relaying": true,
+      "route": "physician",
+      "status": "pending_approval",
+      "agent_summary": "Patient reports elevated home blood pressure readings trending upward over a week, with this morning's reading at 165/100. This represents a clinically significant change in status that warrants physician evaluation.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "physician",
+          "category": "elevated_vital_sign",
+          "draft_message": "Patient reports home blood pressure readings climbing over the past week, with this morning's reading 165/100. Patient is concerned and requests physician evaluation.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient reports elevated home blood pressure readings trending upward over a week, with this morning's reading at 165/100. This represents a clinically significant change in status that warrants physician evaluation."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "physician",
+        "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient reports home blood pressure readings climbing over the past week, with this morning's reading 165/100. Patient is concerned and requests physician evaluation."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex04_work_excuse",
+      "note": "Maria \u2014 administrative note request. Expect: staff (non-clinical).",
+      "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "first_name": "Maria",
+      "last_name": "Gonzalez",
+      "dob": "1978-03-12",
+      "message": "Could someone send me a doctor's note for work? I missed two days and my employer needs documentation. Nothing's wrong, I just need the paperwork."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "first_name": "Maria",
+        "last_name": "Gonzalez",
+        "dob": "1978-03-12"
+      },
+      "worth_relaying": true,
+      "route": "staff",
+      "status": "pending_approval",
+      "agent_summary": "Patient is requesting a work excuse/documentation for two missed days. This is a straightforward administrative request that clinic staff can handle without physician involvement.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "staff",
+          "category": "work_accommodation",
+          "draft_message": "Patient requests a doctor's note documenting absence from work for two days due to illness.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient is requesting a work excuse/documentation for two missed days. This is a straightforward administrative request that clinic staff can handle without physician involvement."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "staff",
+        "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient requests a doctor's note documenting absence from work for two days due to illness."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex05_sample_request",
+      "note": "Robert \u2014 requesting samples. Expect: staff.",
+      "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "first_name": "Robert",
+      "last_name": "Martinez",
+      "dob": "1952-01-30",
+      "message": "Do you have any free samples of the cholesterol medication? I'd like to try it before filling the whole prescription."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0004-0004-0004-000000000004",
+        "first_name": "Robert",
+        "last_name": "Martinez",
+        "dob": "1952-01-30"
+      },
+      "worth_relaying": true,
+      "route": "staff",
+      "status": "pending_approval",
+      "agent_summary": "Patient is requesting medication samples, which is an actionable administrative request that clinic staff can handle without physician review.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "staff",
+          "category": "sample_request",
+          "draft_message": "Patient is requesting free samples of cholesterol medication to try before filling the full prescription.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient is requesting medication samples, which is an actionable administrative request that clinic staff can handle without physician review."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "staff",
+        "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient is requesting free samples of cholesterol medication to try before filling the full prescription."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex06_simple_question",
+      "note": "Priya \u2014 simple logistical question. Expect: staff.",
+      "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "first_name": "Priya",
+      "last_name": "Sharma",
+      "dob": "1988-09-18",
+      "message": "Quick question \u2014 what are your office hours on Saturdays, and do I need an appointment for a flu shot?"
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0005-0005-0005-000000000005",
+        "first_name": "Priya",
+        "last_name": "Sharma",
+        "dob": "1988-09-18"
+      },
+      "worth_relaying": true,
+      "route": "staff",
+      "status": "pending_approval",
+      "agent_summary": "Patient is asking about office hours and appointment requirements for a flu shot\u2014straightforward administrative questions that clinic staff can answer without physician involvement.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "staff",
+          "category": "simple_question",
+          "draft_message": "Patient asking about Saturday office hours and whether an appointment is needed for a flu shot.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient is asking about office hours and appointment requirements for a flu shot\u2014straightforward administrative questions that clinic staff can answer without physician involvement."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "staff",
+        "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient asking about Saturday office hours and whether an appointment is needed for a flu shot."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex07_thank_you",
+      "note": "Maria \u2014 gratitude, no action. Expect: none / rejected.",
+      "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "first_name": "Maria",
+      "last_name": "Gonzalez",
+      "dob": "1978-03-12",
+      "message": "Just calling to say thank you so much to the team, everyone was wonderful at my last visit. No need to call back. Bye!"
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "first_name": "Maria",
+        "last_name": "Gonzalez",
+        "dob": "1978-03-12"
+      },
+      "worth_relaying": false,
+      "route": "none",
+      "status": "rejected",
+      "agent_summary": "Patient is expressing gratitude and explicitly states no callback is needed. This is a thank-you message requiring no action.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "none",
+          "category": "not_actionable",
+          "draft_message": null,
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient is expressing gratitude and explicitly states no callback is needed. This is a thank-you message requiring no action."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": null
+    }
+  },
+  {
+    "input": {
+      "id": "ex08_already_resolved",
+      "note": "Robert \u2014 issue already handled. Expect: none / rejected.",
+      "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "first_name": "Robert",
+      "last_name": "Martinez",
+      "dob": "1952-01-30",
+      "message": "Never mind my earlier message, the pharmacy already sorted out my prescription. All good now, thanks."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0004-0004-0004-000000000004",
+        "first_name": "Robert",
+        "last_name": "Martinez",
+        "dob": "1952-01-30"
+      },
+      "worth_relaying": false,
+      "route": "none",
+      "status": "rejected",
+      "agent_summary": "Patient is confirming that their prescription issue has been resolved independently. This is a confirmation message requiring no clinic action.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "none",
+          "category": "simple_question",
+          "draft_message": null,
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Patient is confirming that their prescription issue has been resolved independently. This is a confirmation message requiring no clinic action."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": null
+    }
+  },
+  {
+    "input": {
+      "id": "ex09_doctor_mismatch",
+      "note": "James \u2014 clinical, but names Dr. Lee while his doctor on file is Dr. Patel. Expect: physician + mismatch flag.",
+      "patient_id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "first_name": "James",
+      "last_name": "Okafor",
+      "dob": "1965-07-24",
+      "message": "Please tell Dr. Lee that my stomach has been really upset since the metformin and I'm having a hard time keeping food down."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0002-0002-0002-000000000002",
+        "first_name": "James",
+        "last_name": "Okafor",
+        "dob": "1965-07-24"
+      },
+      "worth_relaying": true,
+      "route": "physician",
+      "status": "pending_approval",
+      "agent_summary": "This is an adverse medication reaction causing discomfort and difficulty eating\u2014a clinical concern that requires the physician to assess and potentially adjust the medication.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "physician",
+          "category": "adverse_medication_reaction",
+          "draft_message": "Patient reports stomach upset since starting metformin and is having difficulty keeping food down.",
+          "mentioned_doctor": "Dr. Lee",
+          "doctor_on_file": "Dr. James Patel",
+          "doctor_matches": false,
+          "reasoning": "This is an adverse medication reaction causing discomfort and difficulty eating\u2014a clinical concern that requires the physician to assess and potentially adjust the medication."
+        }
+      },
+      "flagged_reason": "message names \"Dr. Lee\" but patient's doctor on file is \"Dr. James Patel\"",
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "physician",
+        "patient_id": "a1b2c3d4-0002-0002-0002-000000000002",
+        "provider_id": "b1b2c3d4-0002-0002-0002-000000000002",
+        "message": "Patient reports stomach upset since starting metformin and is having difficulty keeping food down."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex10_no_provider_on_file",
+      "note": "Linda \u2014 clinical, but has no preferred_provider_id. Expect: physician + no-provider flag.",
+      "patient_id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "first_name": "Linda",
+      "last_name": "Chen",
+      "dob": "1990-11-05",
+      "message": "I've been getting bad headaches every afternoon for the past week and over-the-counter stuff isn't helping."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0003-0003-0003-000000000003",
+        "first_name": "Linda",
+        "last_name": "Chen",
+        "dob": "1990-11-05"
+      },
+      "worth_relaying": true,
+      "route": "physician",
+      "status": "pending_approval",
+      "agent_summary": "Patient reports a new symptom (worsening headaches over the past week) that has not responded to over-the-counter treatment. This represents a change in status and potential discomfort requiring clinical evaluation by a physician.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "physician",
+          "category": "symptom_report",
+          "draft_message": "Patient reports persistent daily afternoon headaches for the past week that have not improved with over-the-counter medications.",
+          "mentioned_doctor": null,
+          "doctor_on_file": null,
+          "doctor_matches": null,
+          "reasoning": "Patient reports a new symptom (worsening headaches over the past week) that has not responded to over-the-counter treatment. This represents a change in status and potential discomfort requiring clinical evaluation by a physician."
+        }
+      },
+      "flagged_reason": "patient has no preferred provider on file; cannot determine recipient doctor",
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "physician",
+        "patient_id": "a1b2c3d4-0003-0003-0003-000000000003",
+        "provider_id": null,
+        "message": "Patient reports persistent daily afternoon headaches for the past week that have not improved with over-the-counter medications."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex11_accommodation_request",
+      "note": "Priya \u2014 request for accommodation. Expect: staff (accommodation).",
+      "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "first_name": "Priya",
+      "last_name": "Sharma",
+      "dob": "1988-09-18",
+      "message": "My school is asking for a letter saying I need extra time on exams due to my condition. Can the office put something together?"
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0005-0005-0005-000000000005",
+        "first_name": "Priya",
+        "last_name": "Sharma",
+        "dob": "1988-09-18"
+      },
+      "worth_relaying": true,
+      "route": "staff",
+      "status": "pending_approval",
+      "agent_summary": "This is a straightforward accommodation request that office staff can process without physician involvement. The clinic staff can prepare the appropriate documentation once they verify the patient's condition and any prior physician notes.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "staff",
+          "category": "work_accommodation",
+          "draft_message": "Patient is requesting a letter from the clinic documenting need for extra time on exams due to their medical condition.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "This is a straightforward accommodation request that office staff can process without physician involvement. The clinic staff can prepare the appropriate documentation once they verify the patient's condition and any prior physician notes."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "staff",
+        "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient is requesting a letter from the clinic documenting need for extra time on exams due to their medical condition."
+      }
+    }
+  },
+  {
+    "input": {
+      "id": "ex12_borderline_refill",
+      "note": "Maria \u2014 borderline; a refill ask rather than a clinical concern. See how it routes.",
+      "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "first_name": "Maria",
+      "last_name": "Gonzalez",
+      "dob": "1978-03-12",
+      "message": "I'm down to my last few Lisinopril pills, can I get those refilled when you get a chance? Feeling fine otherwise."
+    },
+    "output": {
+      "patient": {
+        "id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "first_name": "Maria",
+        "last_name": "Gonzalez",
+        "dob": "1978-03-12"
+      },
+      "worth_relaying": true,
+      "route": "staff",
+      "status": "pending_approval",
+      "agent_summary": "Routine medication refill request for an ongoing prescription (Lisinopril). Patient reports feeling well with no symptoms or concerns, making this a straightforward administrative task suitable for staff handling.",
+      "agent_checks": {
+        "message_relay": {
+          "route": "staff",
+          "category": "medication_refill",
+          "draft_message": "Patient is running low on Lisinopril and requests a refill. Patient reports feeling fine otherwise.",
+          "mentioned_doctor": null,
+          "doctor_on_file": "Dr. Sarah Lee",
+          "doctor_matches": null,
+          "reasoning": "Routine medication refill request for an ongoing prescription (Lisinopril). Patient reports feeling well with no symptoms or concerns, making this a straightforward administrative task suitable for staff handling."
+        }
+      },
+      "flagged_reason": null,
+      "proposed_action": {
+        "type": "message_relay",
+        "assignee": "staff",
+        "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+        "provider_id": "b1b2c3d4-0001-0001-0001-000000000001",
+        "message": "Patient is running low on Lisinopril and requests a refill. Patient reports feeling fine otherwise."
+      }
+    }
+  }
+]

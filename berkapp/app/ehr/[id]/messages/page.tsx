@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useActivePatient } from "../../../_components/PatientContext";
+import { useActivePatient, useProviders } from "../../../_components/PatientContext";
 import {
   Button,
   Field,
@@ -11,7 +11,6 @@ import {
   Select,
   Textarea,
 } from "../../../_components/ui";
-import { providers } from "../../../_lib/data";
 
 type Encounter = {
   id: string;
@@ -43,12 +42,14 @@ const seedEncounters: Encounter[] = [
 
 export default function MessagesPage() {
   const patient = useActivePatient();
+  const providers = useProviders();
+  const defaultRoute = providers[0]?.name ?? "Front Desk";
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
   const [encounters, setEncounters] = useState(seedEncounters);
 
   const [subject, setSubject] = useState("");
-  const [routedTo, setRoutedTo] = useState(providers[0].name);
+  const [routedTo, setRoutedTo] = useState(defaultRoute);
   const [priority, setPriority] = useState("Routine");
   const [body, setBody] = useState("");
   const [callback, setCallback] = useState(patient.phone);
@@ -57,7 +58,7 @@ export default function MessagesPage() {
     setOpen(true);
     setDone(false);
     setSubject("");
-    setRoutedTo(providers[0].name);
+    setRoutedTo(defaultRoute);
     setPriority("Routine");
     setBody("");
     setCallback(patient.phone);

@@ -103,15 +103,11 @@ export function PatientBanner() {
         </div>
         <div>
           <div className="text-base font-bold leading-tight text-slate-800">
-            {patient.name}{" "}
-            {patient.preferredName && (
-              <span className="text-xs font-normal text-slate-500">
-                ({patient.preferredName})
-              </span>
-            )}
+            {patient.name}
           </div>
           <div className="text-[11px] text-slate-600">
-            {patient.sex} · {patient.age} yrs · DOB {patient.dob}
+            {patient.sex ? `${patient.sex} · ` : ""}
+            {patient.age} yrs · DOB {patient.dob}
           </div>
         </div>
       </div>
@@ -129,7 +125,16 @@ export function PatientBanner() {
           <b className="text-slate-500">Insurance:</b> {patient.insurance}
         </span>
         <span>
-          <b className="text-slate-500">Balance:</b> {patient.balance}
+          <b className="text-slate-500">Coverage:</b>{" "}
+          <span
+            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+              patient.insuranceValid
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700"
+            }`}
+          >
+            {patient.insuranceValid ? "Active" : "Invalid"}
+          </span>
         </span>
       </div>
       <div className="flex items-center bg-rose-50 px-4 py-2">

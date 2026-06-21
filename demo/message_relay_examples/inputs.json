@@ -1,0 +1,110 @@
+[
+  {
+    "id": "ex01_adverse_reaction",
+    "note": "Priya — adverse medication reaction, names her real doctor (Dr. Lee). Expect: physician, doctor_matches true.",
+    "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+    "first_name": "Priya",
+    "last_name": "Sharma",
+    "dob": "1988-09-18",
+    "message": "Hi, this is Priya. I wanted to let Dr. Lee know I've been really dizzy and nauseous ever since I started the Sertraline three days ago. Please let her know."
+  },
+  {
+    "id": "ex02_discomfort_pain",
+    "note": "Maria — reports ongoing pain. Expect: physician (any discomfort).",
+    "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+    "first_name": "Maria",
+    "last_name": "Gonzalez",
+    "dob": "1978-03-12",
+    "message": "I've had a sharp pain in my lower right side for two days now and it's not getting better. Can someone get back to me?"
+  },
+  {
+    "id": "ex03_negative_status_update",
+    "note": "Robert — condition worsening. Expect: physician (negative status update).",
+    "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+    "first_name": "Robert",
+    "last_name": "Martinez",
+    "dob": "1952-01-30",
+    "message": "My blood pressure readings at home have been climbing all week, up around 165 over 100 this morning. I'm a little worried."
+  },
+  {
+    "id": "ex04_work_excuse",
+    "note": "Maria — administrative note request. Expect: staff (non-clinical).",
+    "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+    "first_name": "Maria",
+    "last_name": "Gonzalez",
+    "dob": "1978-03-12",
+    "message": "Could someone send me a doctor's note for work? I missed two days and my employer needs documentation. Nothing's wrong, I just need the paperwork."
+  },
+  {
+    "id": "ex05_sample_request",
+    "note": "Robert — requesting samples. Expect: staff.",
+    "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+    "first_name": "Robert",
+    "last_name": "Martinez",
+    "dob": "1952-01-30",
+    "message": "Do you have any free samples of the cholesterol medication? I'd like to try it before filling the whole prescription."
+  },
+  {
+    "id": "ex06_simple_question",
+    "note": "Priya — simple logistical question. Expect: staff.",
+    "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+    "first_name": "Priya",
+    "last_name": "Sharma",
+    "dob": "1988-09-18",
+    "message": "Quick question — what are your office hours on Saturdays, and do I need an appointment for a flu shot?"
+  },
+  {
+    "id": "ex07_thank_you",
+    "note": "Maria — gratitude, no action. Expect: none / rejected.",
+    "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+    "first_name": "Maria",
+    "last_name": "Gonzalez",
+    "dob": "1978-03-12",
+    "message": "Just calling to say thank you so much to the team, everyone was wonderful at my last visit. No need to call back. Bye!"
+  },
+  {
+    "id": "ex08_already_resolved",
+    "note": "Robert — issue already handled. Expect: none / rejected.",
+    "patient_id": "a1b2c3d4-0004-0004-0004-000000000004",
+    "first_name": "Robert",
+    "last_name": "Martinez",
+    "dob": "1952-01-30",
+    "message": "Never mind my earlier message, the pharmacy already sorted out my prescription. All good now, thanks."
+  },
+  {
+    "id": "ex09_doctor_mismatch",
+    "note": "James — clinical, but names Dr. Lee while his doctor on file is Dr. Patel. Expect: physician + mismatch flag.",
+    "patient_id": "a1b2c3d4-0002-0002-0002-000000000002",
+    "first_name": "James",
+    "last_name": "Okafor",
+    "dob": "1965-07-24",
+    "message": "Please tell Dr. Lee that my stomach has been really upset since the metformin and I'm having a hard time keeping food down."
+  },
+  {
+    "id": "ex10_no_provider_on_file",
+    "note": "Linda — clinical, but has no preferred_provider_id. Expect: physician + no-provider flag.",
+    "patient_id": "a1b2c3d4-0003-0003-0003-000000000003",
+    "first_name": "Linda",
+    "last_name": "Chen",
+    "dob": "1990-11-05",
+    "message": "I've been getting bad headaches every afternoon for the past week and over-the-counter stuff isn't helping."
+  },
+  {
+    "id": "ex11_accommodation_request",
+    "note": "Priya — request for accommodation. Expect: staff (accommodation).",
+    "patient_id": "a1b2c3d4-0005-0005-0005-000000000005",
+    "first_name": "Priya",
+    "last_name": "Sharma",
+    "dob": "1988-09-18",
+    "message": "My school is asking for a letter saying I need extra time on exams due to my condition. Can the office put something together?"
+  },
+  {
+    "id": "ex12_borderline_refill",
+    "note": "Maria — borderline; a refill ask rather than a clinical concern. See how it routes.",
+    "patient_id": "a1b2c3d4-0001-0001-0001-000000000001",
+    "first_name": "Maria",
+    "last_name": "Gonzalez",
+    "dob": "1978-03-12",
+    "message": "I'm down to my last few Lisinopril pills, can I get those refilled when you get a chance? Feeling fine otherwise."
+  }
+]
