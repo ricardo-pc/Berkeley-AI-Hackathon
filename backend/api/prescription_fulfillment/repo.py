@@ -25,6 +25,8 @@ class PrescriptionFulfillmentRepo(Protocol):
         instructions: str,
     ) -> dict[str, Any]: ...
 
+    def refill_prescription(self, prescription_id: str) -> dict[str, Any] | None: ...
+
     def update_task(self, task_id: str, fields: dict[str, Any]) -> None: ...
 
 
@@ -74,6 +76,27 @@ class SupabasePrescriptionFulfillmentRepo:
         if not rows:
             raise RefillFailedError("insert returned no rows")
         return rows[0]
+
+    def refill_prescription(self, prescription_id: str) -> dict[str, Any] | None:
+        """Bump an existing prescription's fill date (and reactivate it) in place.
+
+        Returns the updated row, or None if no row matched that id.
+        """
+        from datetime import datetime, timezone
+
+        response = (
+            self._client.table("prescriptions")
+            .update(
+                {
+                    "prescribed_at": datetime.now(timezone.utc).isoformat(),
+                    "active": True,
+                }
+            )
+            .eq("id", prescription_id)
+            .execute()
+        )
+        rows = response.data or []
+        return rows[0] if rows else None
 
     def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
         self._client.table("tasks").update(fields).eq("id", task_id).execute()

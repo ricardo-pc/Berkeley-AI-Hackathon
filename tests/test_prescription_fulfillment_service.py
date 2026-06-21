@@ -6,14 +6,25 @@ from prescription_fulfillment.service import fill_prescription
 
 
 class FakeRepo:
-    def __init__(self, patient: dict[str, Any] | None, inserted: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        patient: dict[str, Any] | None,
+        inserted: dict[str, Any] | None = None,
+        existing_rx: dict[str, dict[str, Any]] | None = None,
+    ):
         self._patient = patient
         self._inserted = inserted or {}
+        self._existing_rx = existing_rx or {}
         self.insert_calls: list[dict[str, Any]] = []
+        self.refill_calls: list[str] = []
         self.updated_tasks: list[tuple[str, dict[str, Any]]] = []
 
     def get_patient(self, patient_id: str) -> dict[str, Any] | None:
         return self._patient
+
+    def refill_prescription(self, prescription_id: str) -> dict[str, Any] | None:
+        self.refill_calls.append(prescription_id)
+        return self._existing_rx.get(prescription_id)
 
     def insert_prescription(
         self,
@@ -59,6 +70,61 @@ def test_successful_refill_inserts_and_returns_confirmation():
     assert result["prescription"]["id"] == "rx-1"
     assert len(repo.insert_calls) == 1
     assert repo.insert_calls[0]["patient_id"] == "pat1"
+
+
+def test_refill_with_prescription_id_updates_in_place_without_inserting():
+    repo = FakeRepo(
+        patient={"id": "pat1", "first_name": "Robert", "last_name": "Wang", "date_of_birth": "1952-01-30"},
+        existing_rx={
+            "rx-existing": {
+                "id": "rx-existing",
+                "provider_id": "prov1",
+                "medication_name": "Montelukast",
+                "dosage": "10mg",
+                "instructions": "once daily",
+                "active": True,
+            }
+        },
+    )
+
+    result = fill_prescription(
+        patient_id="pat1",
+        first_name="Robert",
+        last_name="Wang",
+        dob="1952-01-30",
+        medication_name="Montelukast",
+        dosage="10mg",
+        instructions="once daily",
+        provider_id="prov1",
+        repo=repo,
+        prescription_id="rx-existing",
+    )
+
+    assert result["success"] is True
+    assert result["prescription"]["id"] == "rx-existing"
+    assert repo.refill_calls == ["rx-existing"]
+    assert repo.insert_calls == []
+
+
+def test_refill_falls_back_to_insert_when_prescription_id_unknown():
+    repo = FakeRepo(patient={"id": "pat1", "first_name": "Robert", "last_name": "Wang", "date_of_birth": "1952-01-30"})
+
+    result = fill_prescription(
+        patient_id="pat1",
+        first_name="Robert",
+        last_name="Wang",
+        dob="1952-01-30",
+        medication_name="Montelukast",
+        dosage="10mg",
+        instructions="once daily",
+        provider_id="prov1",
+        repo=repo,
+        prescription_id="rx-gone",
+    )
+
+    assert result["success"] is True
+    assert repo.refill_calls == ["rx-gone"]
+    assert len(repo.insert_calls) == 1
 
 
 def test_missing_patient_fails_without_inserting():

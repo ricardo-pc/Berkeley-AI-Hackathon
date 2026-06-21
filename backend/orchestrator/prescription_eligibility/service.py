@@ -98,6 +98,9 @@ def run_prescription_eligibility_check(
             "provider_id": (
                 matching_prescription.get("provider_id") if matching_prescription else None
             ),
+            # The existing row to bump on approval (refill = update its fill date),
+            # so the EHR's "Last Filled" advances instead of growing a duplicate.
+            "prescription_id": (matching_prescription or {}).get("id"),
             "patient_id": patient_id,
         }
 

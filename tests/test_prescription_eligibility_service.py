@@ -84,6 +84,7 @@ def test_eligible_refill_still_surfaces_a_conflict_warning():
         "dosage": "10mg",
         "instructions": "once daily with food",
         "provider_id": "prov1",
+        "prescription_id": None,
         "patient_id": "pat1",
     }
 

@@ -148,6 +148,7 @@ def _execute_approval(repo: TasksRepo, row: dict[str, Any], note: str | None, ch
             dosage=pa.get("dosage", ""),
             instructions=pa.get("instructions", ""),
             provider_id=pa.get("provider_id", ""),
+            prescription_id=pa.get("prescription_id"),
             task_id=task_id,
             repo=SupabasePrescriptionFulfillmentRepo(),
         )

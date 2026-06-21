@@ -2,6 +2,10 @@ import { PatientChartShell } from "../../_components/PatientChartShell";
 import { PatientProvider } from "../../_components/PatientContext";
 import { getPatientBundle } from "../../_lib/ehr";
 
+// Always re-read from Supabase so an approved refill (or any agent write) shows
+// on reload instead of serving a stale cached render.
+export const dynamic = "force-dynamic";
+
 export default async function PatientChartLayout({
   children,
   params,

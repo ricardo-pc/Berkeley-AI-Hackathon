@@ -18,11 +18,16 @@ def fill_prescription(
     provider_id: str,
     repo: PrescriptionFulfillmentRepo,
     task_id: str | None = None,
+    prescription_id: str | None = None,
 ) -> dict[str, Any]:
     """Write a pre-approved refill to the prescriptions table and return a confirmation payload.
 
     The refill is assumed to already be validated upstream (the eligibility step),
-    so this only resolves the patient and inserts the new prescription row.
+    so this only resolves the patient and records the fill. When ``prescription_id``
+    points at the patient's existing script, the refill is applied **in place**
+    (its fill date is bumped) so the EHR's "Last Filled" advances on the same row
+    instead of accumulating duplicate medication lines; otherwise a new row is
+    inserted (a medication the patient wasn't already on).
     patient_id is the canonical lookup key; first/last/dob are carried for output
     and human review.
     """
@@ -40,13 +45,17 @@ def fill_prescription(
             },
         }
 
-    prescription = repo.insert_prescription(
-        patient_id=patient["id"],
-        provider_id=provider_id,
-        medication_name=medication_name,
-        dosage=dosage,
-        instructions=instructions,
-    )
+    prescription = None
+    if prescription_id:
+        prescription = repo.refill_prescription(prescription_id)
+    if prescription is None:
+        prescription = repo.insert_prescription(
+            patient_id=patient["id"],
+            provider_id=provider_id,
+            medication_name=medication_name,
+            dosage=dosage,
+            instructions=instructions,
+        )
 
     if task_id:
         repo.update_task(task_id, {"status": "complete", "approved_at": datetime.now(timezone.utc).isoformat()})
