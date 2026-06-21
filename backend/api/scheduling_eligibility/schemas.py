@@ -12,6 +12,7 @@ class ScheduleEligibilityRequest(BaseModel):
     requested_start: datetime
     requested_end: datetime
     cancel_appointment_id: Optional[str] = None
+    task_id: Optional[str] = None
 
 
 class ScheduleEligibilityResult(BaseModel):
@@ -20,4 +21,5 @@ class ScheduleEligibilityResult(BaseModel):
     flagged_reason: Optional[str] = None
     agent_checks: Dict[str, Any]
     agent_summary: str
+    suggested_timeslot: Optional[Dict[str, Any]] = None
     proposed_action: Optional[Dict[str, Any]] = None

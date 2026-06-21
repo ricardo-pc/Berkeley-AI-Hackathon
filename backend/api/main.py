@@ -56,6 +56,7 @@ async def create_schedule_eligibility_check(payload: ScheduleEligibilityRequest)
             requested_start=payload.requested_start,
             requested_end=payload.requested_end,
             cancel_appointment_id=payload.cancel_appointment_id,
+            task_id=payload.task_id,
             repo=repo,
         )
     except ScheduleEligibilityError as exc:

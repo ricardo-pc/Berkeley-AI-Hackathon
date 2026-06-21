@@ -20,6 +20,8 @@ class ScheduleEligibilityRepo(Protocol):
 
     def get_reschedule_tasks_since_last_visit(self, patient_id: str) -> list[dict[str, Any]]: ...
 
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None: ...
+
 
 def load_environment() -> None:
     if not find_dotenv or not load_dotenv:
@@ -74,6 +76,9 @@ class SupabaseScheduleEligibilityRepo:
 
         response = query.execute()
         return response.data or []
+
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
+        self._client.table("tasks").update(fields).eq("id", task_id).execute()
 
 
 def _build_supabase_client() -> Any:

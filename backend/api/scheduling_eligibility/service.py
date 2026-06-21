@@ -22,6 +22,7 @@ def run_schedule_eligibility_check(
     requested_end: datetime,
     repo: ScheduleEligibilityRepo,
     cancel_appointment_id: str | None = None,
+    task_id: str | None = None,
     summarize: Callable[[dict[str, Any]], str] = generate_agent_summary,
 ) -> dict[str, Any]:
     provider = repo.get_provider(provider_id)
@@ -60,8 +61,14 @@ def run_schedule_eligibility_check(
     status = "escalated" if requires_manual_call else "pending_approval"
     flagged_reason = MANUAL_CALL_REASON if requires_manual_call else None
 
+    suggested_timeslot = None
     proposed_action = None
     if eligible:
+        suggested_timeslot = {
+            "start": requested_start.isoformat(),
+            "end": requested_end.isoformat(),
+            "provider_id": provider_id,
+        }
         proposed_action = {
             "type": "reschedule",
             "cancel_appointment_id": cancel_appointment_id,
@@ -70,11 +77,28 @@ def run_schedule_eligibility_check(
             "provider_id": provider_id,
         }
 
-    return {
+    agent_summary = summarize(checks)
+
+    result = {
         "eligible": eligible,
         "status": status,
         "flagged_reason": flagged_reason,
         "agent_checks": checks,
-        "agent_summary": summarize(checks),
+        "agent_summary": agent_summary,
+        "suggested_timeslot": suggested_timeslot,
         "proposed_action": proposed_action,
     }
+
+    if task_id:
+        repo.update_task(
+            task_id,
+            {
+                "status": status,
+                "agent_summary": agent_summary,
+                "agent_checks": checks,
+                "proposed_action": proposed_action,
+                "flagged_reason": flagged_reason,
+            },
+        )
+
+    return result

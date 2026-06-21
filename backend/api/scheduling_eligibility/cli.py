@@ -17,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--start", required=True, help="Requested start time, ISO 8601.")
     parser.add_argument("--end", required=True, help="Requested end time, ISO 8601.")
     parser.add_argument("--cancel-appointment-id", help="Existing appointment id being moved, if any.")
+    parser.add_argument("--task-id", help="tasks.id to write the result back to, if any.")
     parser.add_argument("--pretty", action="store_true")
     return parser
 
@@ -29,6 +30,7 @@ def run(args: argparse.Namespace) -> dict:
         requested_start=datetime.fromisoformat(args.start),
         requested_end=datetime.fromisoformat(args.end),
         cancel_appointment_id=args.cancel_appointment_id,
+        task_id=args.task_id,
         repo=repo,
     )
 

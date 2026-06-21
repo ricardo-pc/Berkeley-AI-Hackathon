@@ -27,6 +27,7 @@ class FakeRepo:
         self._provider = provider
         self._appointments = appointments or []
         self._reschedule_tasks = reschedule_tasks or []
+        self.updated_tasks: list[tuple[str, dict[str, Any]]] = []
 
     def get_provider(self, provider_id: str) -> dict[str, Any]:
         return self._provider or {}
@@ -36,6 +37,9 @@ class FakeRepo:
 
     def get_reschedule_tasks_since_last_visit(self, patient_id: str) -> list[dict[str, Any]]:
         return self._reschedule_tasks
+
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
+        self.updated_tasks.append((task_id, fields))
 
 
 def fake_summarize(checks: dict[str, Any]) -> str:
@@ -60,6 +64,72 @@ def test_open_slot_is_eligible_with_a_proposed_reschedule_action():
     assert result["proposed_action"]["type"] == "reschedule"
     assert result["agent_checks"]["scheduling_eligibility"]["conflict"] is False
     assert result["agent_summary"] == "fake summary"
+    assert result["suggested_timeslot"] == {
+        "start": "2026-06-24T10:00:00+00:00",
+        "end": "2026-06-24T10:30:00+00:00",
+        "provider_id": "p1",
+    }
+
+
+def test_eligible_slot_has_no_suggested_timeslot_field_when_conflicting():
+    existing = [
+        {
+            "id": "other",
+            "status": "scheduled",
+            "start_time": "2026-06-24T10:00:00+00:00",
+            "end_time": "2026-06-24T10:30:00+00:00",
+        }
+    ]
+    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY}, appointments=existing)
+
+    result = run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        summarize=fake_summarize,
+    )
+
+    assert result["suggested_timeslot"] is None
+
+
+def test_task_id_writes_the_result_back_to_the_tasks_table():
+    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY})
+
+    result = run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        task_id="task-1",
+        summarize=fake_summarize,
+    )
+
+    assert len(repo.updated_tasks) == 1
+    written_task_id, written_fields = repo.updated_tasks[0]
+    assert written_task_id == "task-1"
+    assert written_fields["status"] == result["status"]
+    assert written_fields["agent_summary"] == result["agent_summary"]
+    assert written_fields["agent_checks"] == result["agent_checks"]
+    assert written_fields["proposed_action"] == result["proposed_action"]
+    assert written_fields["flagged_reason"] == result["flagged_reason"]
+
+
+def test_no_task_id_does_not_touch_the_tasks_table():
+    repo = FakeRepo(provider={"id": "p1", "availability": PROVIDER_AVAILABILITY})
+
+    run_schedule_eligibility_check(
+        patient_id="pat1",
+        provider_id="p1",
+        requested_start=datetime.fromisoformat("2026-06-24T10:00:00+00:00"),
+        requested_end=datetime.fromisoformat("2026-06-24T10:30:00+00:00"),
+        repo=repo,
+        summarize=fake_summarize,
+    )
+
+    assert repo.updated_tasks == []
 
 
 def test_conflicting_slot_is_pending_approval_without_a_proposed_action():
