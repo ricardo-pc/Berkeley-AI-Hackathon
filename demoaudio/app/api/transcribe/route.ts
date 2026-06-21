@@ -39,7 +39,9 @@ export async function POST(request: Request) {
   }
 
   const raw = await upstream.text();
-  let data: { transcript?: string; intake?: unknown; error?: unknown } | null = null;
+  let data:
+    | { transcript?: string; intake?: unknown; orchestrator_results?: unknown; error?: unknown }
+    | null = null;
   try {
     data = JSON.parse(raw);
   } catch {
@@ -57,5 +59,6 @@ export async function POST(request: Request) {
   return Response.json({
     transcript: data?.transcript ?? "",
     intake: data?.intake ?? null,
+    orchestrator_results: data?.orchestrator_results ?? [],
   });
 }
