@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from .repo import SchedulerRepo
@@ -18,6 +18,7 @@ def book_appointment(
     repo: SchedulerRepo,
     cancel_appointment_id: str | None = None,
     visit_type: str = "follow_up",
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     """Write a pre-approved slot to the calendar and return a confirmation payload.
 
@@ -53,6 +54,9 @@ def book_appointment(
         visit_type=visit_type,
     )
     provider = repo.get_provider(provider_id)
+
+    if task_id:
+        repo.update_task(task_id, {"status": "complete", "approved_at": datetime.now(timezone.utc).isoformat()})
 
     return {
         "success": True,

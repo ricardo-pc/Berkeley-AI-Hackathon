@@ -32,6 +32,8 @@ class SchedulerRepo(Protocol):
         visit_type: str,
     ) -> dict[str, Any]: ...
 
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None: ...
+
 
 def load_environment() -> None:
     if not find_dotenv or not load_dotenv:
@@ -106,6 +108,9 @@ class SupabaseSchedulerRepo:
         if not rows:
             raise BookingFailedError("insert returned no rows")
         return rows[0]
+
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
+        self._client.table("tasks").update(fields).eq("id", task_id).execute()
 
 
 def _build_supabase_client() -> Any:

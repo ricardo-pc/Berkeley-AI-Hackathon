@@ -22,3 +22,5 @@ class BookingRequest(BaseModel):
 
     # The existing appointment being moved; it gets marked "rescheduled".
     cancel_appointment_id: Optional[str] = None
+
+    task_id: Optional[str] = None

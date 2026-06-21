@@ -25,6 +25,8 @@ class PrescriptionFulfillmentRepo(Protocol):
         instructions: str,
     ) -> dict[str, Any]: ...
 
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None: ...
+
 
 def load_environment() -> None:
     if not find_dotenv or not load_dotenv:
@@ -72,6 +74,9 @@ class SupabasePrescriptionFulfillmentRepo:
         if not rows:
             raise RefillFailedError("insert returned no rows")
         return rows[0]
+
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
+        self._client.table("tasks").update(fields).eq("id", task_id).execute()
 
 
 def _build_supabase_client() -> Any:

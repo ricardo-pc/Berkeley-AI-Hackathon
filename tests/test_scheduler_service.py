@@ -17,6 +17,7 @@ class FakeRepo:
         self._provider = provider
         self._inserted_appointment = inserted_appointment or {}
         self.rescheduled_ids: list[str] = []
+        self.updated_tasks: list[tuple[str, dict[str, Any]]] = []
 
     def get_patient(self, patient_id: str) -> dict[str, Any] | None:
         return self._patient
@@ -42,6 +43,9 @@ class FakeRepo:
             "visit_type": visit_type,
             "status": "scheduled",
         }
+
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
+        self.updated_tasks.append((task_id, fields))
 
 
 def test_successful_booking_includes_provider_name():
@@ -87,6 +91,51 @@ def test_missing_provider_still_succeeds_without_a_name():
     assert result["appointment"]["provider_name"] is None
 
 
+def test_task_id_marks_the_task_complete_on_success():
+    repo = FakeRepo(
+        patient={"id": "pat1", "first_name": "Robert", "last_name": "Martinez", "date_of_birth": "1952-01-30"},
+        provider={"id": "prov1", "name": "Dr. Sarah Lee"},
+    )
+
+    book_appointment(
+        patient_id="pat1",
+        first_name="Robert",
+        last_name="Martinez",
+        dob="1952-01-30",
+        provider_id="prov1",
+        start_time=datetime.fromisoformat("2026-06-25T09:00:00+00:00"),
+        end_time=datetime.fromisoformat("2026-06-25T09:30:00+00:00"),
+        repo=repo,
+        task_id="task-1",
+    )
+
+    assert len(repo.updated_tasks) == 1
+    task_id, fields = repo.updated_tasks[0]
+    assert task_id == "task-1"
+    assert fields["status"] == "complete"
+    assert "approved_at" in fields
+
+
+def test_no_task_id_does_not_touch_the_tasks_table():
+    repo = FakeRepo(
+        patient={"id": "pat1", "first_name": "Robert", "last_name": "Martinez", "date_of_birth": "1952-01-30"},
+        provider={"id": "prov1", "name": "Dr. Sarah Lee"},
+    )
+
+    book_appointment(
+        patient_id="pat1",
+        first_name="Robert",
+        last_name="Martinez",
+        dob="1952-01-30",
+        provider_id="prov1",
+        start_time=datetime.fromisoformat("2026-06-25T09:00:00+00:00"),
+        end_time=datetime.fromisoformat("2026-06-25T09:30:00+00:00"),
+        repo=repo,
+    )
+
+    assert repo.updated_tasks == []
+
+
 def test_missing_patient_fails_without_booking():
     repo = FakeRepo(patient=None)
 
@@ -99,7 +148,9 @@ def test_missing_patient_fails_without_booking():
         start_time=datetime.fromisoformat("2026-06-25T09:00:00+00:00"),
         end_time=datetime.fromisoformat("2026-06-25T09:30:00+00:00"),
         repo=repo,
+        task_id="task-1",
     )
 
     assert result["success"] is False
     assert result["error"] == "patient_not_found"
+    assert repo.updated_tasks == []

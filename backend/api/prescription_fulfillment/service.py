@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from .repo import PrescriptionFulfillmentRepo
@@ -16,6 +17,7 @@ def fill_prescription(
     instructions: str,
     provider_id: str,
     repo: PrescriptionFulfillmentRepo,
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     """Write a pre-approved refill to the prescriptions table and return a confirmation payload.
 
@@ -45,6 +47,9 @@ def fill_prescription(
         dosage=dosage,
         instructions=instructions,
     )
+
+    if task_id:
+        repo.update_task(task_id, {"status": "complete", "approved_at": datetime.now(timezone.utc).isoformat()})
 
     return {
         "success": True,

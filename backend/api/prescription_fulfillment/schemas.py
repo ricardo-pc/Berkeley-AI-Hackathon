@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -19,3 +21,5 @@ class RefillRequest(BaseModel):
     dosage: str
     instructions: str
     provider_id: str
+
+    task_id: Optional[str] = None

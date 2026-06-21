@@ -10,6 +10,7 @@ class FakeRepo:
         self._patient = patient
         self._inserted = inserted or {}
         self.insert_calls: list[dict[str, Any]] = []
+        self.updated_tasks: list[tuple[str, dict[str, Any]]] = []
 
     def get_patient(self, patient_id: str) -> dict[str, Any] | None:
         return self._patient
@@ -32,6 +33,9 @@ class FakeRepo:
         }
         self.insert_calls.append(call)
         return {**call, "id": "rx-1", "active": True}
+
+    def update_task(self, task_id: str, fields: dict[str, Any]) -> None:
+        self.updated_tasks.append((task_id, fields))
 
 
 def test_successful_refill_inserts_and_returns_confirmation():
@@ -70,8 +74,51 @@ def test_missing_patient_fails_without_inserting():
         instructions="once daily with food",
         provider_id="prov1",
         repo=repo,
+        task_id="task-1",
     )
 
     assert result["success"] is False
     assert result["error"] == "patient_not_found"
     assert repo.insert_calls == []
+    assert repo.updated_tasks == []
+
+
+def test_task_id_marks_the_task_complete_on_success():
+    repo = FakeRepo(patient={"id": "pat1", "first_name": "Maria", "last_name": "Gonzalez", "date_of_birth": "1978-03-12"})
+
+    fill_prescription(
+        patient_id="pat1",
+        first_name="Maria",
+        last_name="Gonzalez",
+        dob="1978-03-12",
+        medication_name="Lisinopril",
+        dosage="10mg",
+        instructions="once daily with food",
+        provider_id="prov1",
+        repo=repo,
+        task_id="task-1",
+    )
+
+    assert len(repo.updated_tasks) == 1
+    task_id, fields = repo.updated_tasks[0]
+    assert task_id == "task-1"
+    assert fields["status"] == "complete"
+    assert "approved_at" in fields
+
+
+def test_no_task_id_does_not_touch_the_tasks_table():
+    repo = FakeRepo(patient={"id": "pat1", "first_name": "Maria", "last_name": "Gonzalez", "date_of_birth": "1978-03-12"})
+
+    fill_prescription(
+        patient_id="pat1",
+        first_name="Maria",
+        last_name="Gonzalez",
+        dob="1978-03-12",
+        medication_name="Lisinopril",
+        dosage="10mg",
+        instructions="once daily with food",
+        provider_id="prov1",
+        repo=repo,
+    )
+
+    assert repo.updated_tasks == []

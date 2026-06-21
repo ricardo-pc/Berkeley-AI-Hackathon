@@ -39,6 +39,11 @@ from scheduling_eligibility.errors import error_payload as schedule_error_payloa
 from scheduling_eligibility.repo import SupabaseScheduleEligibilityRepo
 from scheduling_eligibility.schemas import ScheduleEligibilityRequest
 from scheduling_eligibility.service import run_schedule_eligibility_check
+from summary.claude_summary import generate_narrative
+from summary.errors import SummaryError
+from summary.errors import error_payload as summary_error_payload
+from summary.repo import SupabaseSummaryRepo
+from summary.service import build_daily_digest
 from transcription.errors import InvalidAudioError, TranscriptionError, error_payload
 from transcription.schemas import TranscriptionResponse, to_plain_dict
 from transcription.service import normalize_deepgram_response, transcribe_audio
@@ -269,6 +274,7 @@ async def create_appointment(payload: BookingRequest):
             end_time=payload.end_time,
             cancel_appointment_id=payload.cancel_appointment_id,
             visit_type=payload.visit_type,
+            task_id=payload.task_id,
             repo=repo,
         )
     except SchedulerError as exc:
@@ -291,6 +297,7 @@ async def create_prescription_refill(payload: RefillRequest):
             dosage=payload.dosage,
             instructions=payload.instructions,
             provider_id=payload.provider_id,
+            task_id=payload.task_id,
             repo=repo,
         )
     except PrescriptionFulfillmentError as exc:
@@ -442,3 +449,14 @@ def _extract_instructions(details: str, dosage: str) -> str:
         if after_dosage:
             return after_dosage
     return details
+
+
+@app.get("/api/summary")
+async def get_daily_digest(since: datetime | None = None):
+    try:
+        repo = SupabaseSummaryRepo()
+        result = build_daily_digest(since=since, repo=repo, summarize=generate_narrative)
+    except SummaryError as exc:
+        return JSONResponse(status_code=exc.status_code, content=summary_error_payload(exc))
+
+    return result
