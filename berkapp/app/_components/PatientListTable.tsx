@@ -40,7 +40,6 @@ export function PatientListTable({ patients }: { patients: PatientSummary[] }) {
               <th className="py-1.5 font-medium">MRN</th>
               <th className="py-1.5 font-medium">PCP</th>
               <th className="py-1.5 font-medium">Last visit</th>
-              <th className="py-1.5 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -63,13 +62,6 @@ export function PatientListTable({ patients }: { patients: PatientSummary[] }) {
                 <td className="py-2 text-slate-500">{p.mrn}</td>
                 <td className="py-2 text-slate-600">{p.pcp}</td>
                 <td className="py-2 text-slate-500">{p.lastVisit}</td>
-                <td className="py-2">
-                  {p.flag && (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                      {p.flag}
-                    </span>
-                  )}
-                </td>
               </tr>
             ))}
           </tbody>
