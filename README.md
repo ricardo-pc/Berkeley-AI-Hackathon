@@ -8,6 +8,7 @@ Cuts down unnecessary time on simple, repetitive tasks at a hospital front desk.
 
 - `berkapp` EHR demo: https://berkapp-three.vercel.app
 - `dashboard` CHW approval dashboard: https://dashboard-azure-six-79.vercel.app
+- `demo` Otomedi audio upload demo: https://demoaudio-ecru.vercel.app
 
 ## Structure
 
