@@ -1,0 +1,45 @@
+{
+  "metadata": {
+    "request_id": "mock_dg_maria_refill_and_message_relay",
+    "duration": 18.4,
+    "channels": 1,
+    "model_info": {
+      "name": "nova-3"
+    }
+  },
+  "results": {
+    "channels": [
+      {
+        "alternatives": [
+          {
+            "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I have Blue Cross PPO and my phone number is 415-555-0101. I need a refill for my Lisinopril. Also, can you please let Dr. Lee know that I have been feeling dizzy since starting the Amlodipine?",
+            "confidence": 0.966,
+            "words": []
+          }
+        ]
+      }
+    ],
+    "utterances": [
+      {
+        "id": "utt_1",
+        "start": 0.0,
+        "end": 7.1,
+        "confidence": 0.969,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I have Blue Cross PPO and my phone number is 415-555-0101.",
+        "words": []
+      },
+      {
+        "id": "utt_2",
+        "start": 7.2,
+        "end": 18.4,
+        "confidence": 0.963,
+        "channel": 0,
+        "speaker": 0,
+        "transcript": "I need a refill for my Lisinopril. Also, can you please let Dr. Lee know that I have been feeling dizzy since starting the Amlodipine?",
+        "words": []
+      }
+    ]
+  }
+}

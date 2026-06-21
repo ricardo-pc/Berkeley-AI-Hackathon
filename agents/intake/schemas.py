@@ -27,8 +27,15 @@ class IntakeExtraction(BaseModel):
     phone_number: Optional[str] = None
     insurance_plan: Optional[str] = None
     request: IntakeRequestDetails = Field(default_factory=IntakeRequestDetails)
+    requests: List[IntakeRequestDetails] = Field(default_factory=list)
     missing_fields: List[str] = Field(default_factory=list)
     transcript: str = ""
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.requests:
+            self.requests = [self.request]
+        elif _is_default_request(self.request):
+            self.request = self.requests[0]
 
 
 class IntakeExtractionRequest(BaseModel):
@@ -39,3 +46,13 @@ def to_plain_dict(model: BaseModel) -> dict:
     if hasattr(model, "model_dump"):
         return model.model_dump()
     return model.dict()
+
+
+def _is_default_request(request: IntakeRequestDetails) -> bool:
+    return (
+        request.type == "unknown"
+        and request.details == ""
+        and request.orders == []
+        and request.preferred_times == []
+        and request.urgency_signal == "unknown"
+    )

@@ -1,0 +1,36 @@
+{
+  "first_name": "Maria",
+  "last_name": "Gonzalez",
+  "date_of_birth": "1978-03-12",
+  "phone_number": "415-555-0101",
+  "insurance_plan": "Blue Cross PPO",
+  "request": {
+    "type": "refill",
+    "details": "Refill for Lisinopril",
+    "orders": [
+      "Lisinopril"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "routine"
+  },
+  "requests": [
+    {
+      "type": "refill",
+      "details": "Refill for Lisinopril",
+      "orders": [
+        "Lisinopril"
+      ],
+      "preferred_times": [],
+      "urgency_signal": "routine"
+    },
+    {
+      "type": "message_relay",
+      "details": "Notify Dr. Lee that caller has been feeling dizzy since starting Amlodipine",
+      "orders": [],
+      "preferred_times": [],
+      "urgency_signal": "routine"
+    }
+  ],
+  "missing_fields": [],
+  "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I have Blue Cross PPO and my phone number is 415-555-0101. I need a refill for my Lisinopril. Also, can you please let Dr. Lee know that I have been feeling dizzy since starting the Amlodipine?"
+}

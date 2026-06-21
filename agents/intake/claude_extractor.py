@@ -25,17 +25,26 @@ Do not infer patient identity, insurance, dates, phone numbers, or request detai
 If a field is not stated, return null for scalar fields or [] for arrays.
 
 Return JSON only with exactly these keys:
-first_name, last_name, date_of_birth, phone_number, insurance_plan, request, missing_fields.
+first_name, last_name, date_of_birth, phone_number, insurance_plan, request, requests, missing_fields.
 
 Rules:
 - date_of_birth must be YYYY-MM-DD if the transcript gives enough information; otherwise null.
 - phone_number should preserve the stated callback number as digits or a readable phone string.
 - request must be an object with exactly these keys: type, details, orders, preferred_times, urgency_signal.
+- requests must be an array of request objects with the same keys as request.
+- request is the primary or first request; requests contains every distinct request in the voicemail.
+- If the caller makes exactly one request, requests must contain one object identical to request.
+- If the caller makes multiple requests, such as a refill plus a doctor message, create one request object per workflow item and put them all in requests in the order the caller stated them.
 - request.type must be one of: refill, reschedule, message_relay, unknown.
+- request.type is the workflow category, not the medical urgency. Never return emergency as request.type.
+- Use request.type message_relay when the caller asks the clinic to notify, tell, message, or relay information to a doctor/provider, including medication side effects or symptoms.
+- Use request.type unknown for acute symptoms or safety concerns that do not include a refill, reschedule, or relay-to-provider request.
 - request.details should be a concise factual summary of what the caller requested.
-- request.orders should list requested medications/orders/items explicitly named by the caller, such as ["Lisinopril 10 mg once daily with food"]. Use [] when none are stated.
+- request.orders should list only medications/orders/items the caller is explicitly asking the clinic to refill, order, schedule, or otherwise act on, such as ["Lisinopril"]. Use [] when none are requested.
+- Do not include medications that are only mentioned as context, history, current medications, side effects, or symptoms. For example, "I feel dizzy since starting Sertraline" is a message relay with orders [].
+- Do not include dosages in request.orders.
 - request.preferred_times is an array of appointment time preferences stated by the caller.
-- request.urgency_signal must be one of: routine, urgent, emergency, unknown.
+- request.urgency_signal must be one of: routine, urgent, emergency, unknown. Put clinical urgency here, not in request.type.
 - missing_fields should include any missing required intake fields from:
   first_name, last_name, date_of_birth, phone_number, request.details, insurance_plan.
 """.strip()

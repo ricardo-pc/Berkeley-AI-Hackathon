@@ -6,13 +6,24 @@
   "insurance_plan": "Kaiser Permanente",
   "request": {
     "type": "reschedule",
-    "details": "Caller wants to reschedule her appointment to June 24th at 3 PM if possible.",
+    "details": "Caller requests to reschedule appointment to June 24th at 3 PM.",
     "orders": [],
     "preferred_times": [
       "June 24th at 3 PM"
     ],
     "urgency_signal": "routine"
   },
+  "requests": [
+    {
+      "type": "reschedule",
+      "details": "Caller requests to reschedule appointment to June 24th at 3 PM.",
+      "orders": [],
+      "preferred_times": [
+        "June 24th at 3 PM"
+      ],
+      "urgency_signal": "routine"
+    }
+  ],
   "missing_fields": [],
   "transcript": "Hi, my name is Linda Chen, date of birth November 5, 1990. I have Kaiser Permanente. I would like to reschedule my appointment to June 24th at 3 PM if possible. My number is 628-555-0193."
 }

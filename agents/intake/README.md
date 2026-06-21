@@ -13,6 +13,7 @@ Receives Deepgram/STT JSON and extracts strict intake fields with Claude:
   - orders
   - preferred times
   - urgency signal
+- `requests` array for voicemails that contain more than one workflow item, such as a refill plus a doctor-message relay
 
 The field names line up with the database reference in `docs/database/README.md`: `first_name`, `last_name`, `date_of_birth`, `phone_number`, and `insurance_plan` map to patient identity/contact information; `request.type` and `transcript` map to the voicemail request.
 

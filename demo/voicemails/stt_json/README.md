@@ -19,4 +19,4 @@ They intentionally mix seeded database patients from `docs/database/README.md` w
 - `07_missing_dob_and_insurance_reschedule.json` — missing required identity/insurance details.
 - `08_emergency_symptoms_escalation.json` — urgent symptoms, should eventually force escalation/human review.
 - `09_maria_gonzalez_dosage_mismatch.json` — seeded patient, medication exists but requested dosage does not match seeded prescription.
-
+- `10_maria_gonzalez_refill_and_message_relay.json` — seeded patient with two requests in one voicemail: refill plus doctor-message relay.

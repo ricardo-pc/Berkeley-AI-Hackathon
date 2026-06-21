@@ -6,13 +6,20 @@
   "insurance_plan": "Blue Cross PPO",
   "request": {
     "type": "message_relay",
-    "details": "Caller wants to inform Dr. Lee that she has been experiencing dizziness and nausea since starting Sertraline three days ago.",
-    "orders": [
-      "Sertraline"
-    ],
+    "details": "Caller reports feeling dizzy and nauseous since starting Sertraline three days ago and requests that Dr. Lee be notified.",
+    "orders": [],
     "preferred_times": [],
     "urgency_signal": "urgent"
   },
+  "requests": [
+    {
+      "type": "message_relay",
+      "details": "Caller reports feeling dizzy and nauseous since starting Sertraline three days ago and requests that Dr. Lee be notified.",
+      "orders": [],
+      "preferred_times": [],
+      "urgency_signal": "urgent"
+    }
+  ],
   "missing_fields": [],
   "transcript": "Hi, this is Priya Sharma, September 18, 1988. I have Blue Cross PPO. I just wanted to let Dr. Lee know that I have been feeling really dizzy and nauseous since I started the Sertraline three days ago. Please let her know. My number is 510-555-0165."
 }

@@ -1,0 +1,35 @@
+{
+  "first_name": "Maria",
+  "last_name": "Gonzalez",
+  "date_of_birth": "1978-03-12",
+  "phone_number": "415-555-0101",
+  "insurance_plan": "Blue Cross PPO",
+  "request": {
+    "type": "refill",
+    "details": "Patient is requesting a refill of Lisinopril and also asks the clinic to notify Dr. Lee about dizziness.",
+    "orders": [
+      "Lisinopril"
+    ],
+    "preferred_times": [],
+    "urgency_signal": "urgent"
+  },
+  "requests": [
+    {
+      "type": "refill",
+      "details": "Patient is requesting a refill of Lisinopril.",
+      "orders": [
+        "Lisinopril"
+      ],
+      "preferred_times": [],
+      "urgency_signal": "routine"
+    },
+    {
+      "type": "message_relay",
+      "details": "Patient asks the clinic to tell Dr. Lee that she has been dizzy since starting Amlodipine.",
+      "orders": [],
+      "preferred_times": [],
+      "urgency_signal": "urgent"
+    }
+  ],
+  "missing_fields": []
+}

@@ -6,13 +6,24 @@
   "insurance_plan": "Blue Cross PPO",
   "request": {
     "type": "refill",
-    "details": "Caller is requesting a refill for Lisinopril 20 mg twice daily.",
+    "details": "Refill for Lisinopril 20 milligrams twice daily",
     "orders": [
-      "Lisinopril 20 mg twice daily"
+      "Lisinopril"
     ],
     "preferred_times": [],
     "urgency_signal": "routine"
   },
+  "requests": [
+    {
+      "type": "refill",
+      "details": "Refill for Lisinopril 20 milligrams twice daily",
+      "orders": [
+        "Lisinopril"
+      ],
+      "preferred_times": [],
+      "urgency_signal": "routine"
+    }
+  ],
   "missing_fields": [],
   "transcript": "Hi, this is Maria Gonzalez, date of birth March 12, 1978. I need a refill for Lisinopril 20 milligrams twice daily. I have Blue Cross PPO insurance. My callback number is 415-555-0101."
 }

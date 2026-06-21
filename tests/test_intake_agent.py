@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from agents.intake.claude_extractor import extract_intake_fields_with_claude
+from agents.intake.claude_extractor import SYSTEM_PROMPT, extract_intake_fields_with_claude
 from agents.intake.errors import (
     ClaudeExtractionError,
     InvalidSTTPayloadError,
@@ -20,6 +20,7 @@ from agents.intake.stt import extract_transcript_from_stt_json
 ROOT = Path(__file__).resolve().parents[1]
 DEEPGRAM_FIXTURE = ROOT / "tests" / "fixtures" / "deepgram_pre_recorded_success.json"
 CLAUDE_FIXTURE = ROOT / "tests" / "fixtures" / "intake_claude_success.json"
+CLAUDE_MULTI_REQUEST_FIXTURE = ROOT / "tests" / "fixtures" / "intake_claude_multi_request.json"
 
 
 class FakeTextBlock:
@@ -121,6 +122,39 @@ def test_claude_extraction_rejects_non_json():
 
     assert exc_info.value.code == "claude_extraction_error"
     assert exc_info.value.status_code == 502
+
+
+def test_prompt_separates_message_relay_from_urgency():
+    assert "Never return emergency as request.type" in SYSTEM_PROMPT
+    assert "Use request.type message_relay" in SYSTEM_PROMPT
+    assert "Put clinical urgency here, not in request.type" in SYSTEM_PROMPT
+
+
+def test_prompt_supports_multiple_distinct_requests():
+    assert "requests contains every distinct request" in SYSTEM_PROMPT
+    assert "refill plus a doctor message" in SYSTEM_PROMPT
+
+
+def test_prompt_excludes_context_medications_from_orders():
+    assert "only mentioned as context" in SYSTEM_PROMPT
+    assert "dizzy since starting Sertraline" in SYSTEM_PROMPT
+
+
+def test_claude_extraction_accepts_multiple_requests():
+    claude_payload = load_json(CLAUDE_MULTI_REQUEST_FIXTURE)
+    client = FakeAnthropicClient(json.dumps(claude_payload))
+
+    result = extract_intake_fields_with_claude(
+        transcript="Maria Gonzalez needs Lisinopril and wants Dr. Lee told about dizziness.",
+        stt_json={"transcript": "Maria Gonzalez needs Lisinopril and wants Dr. Lee told about dizziness."},
+        api_key="test-key",
+        client=client,
+    )
+
+    assert result.request.type == "refill"
+    assert [request.type for request in result.requests] == ["refill", "message_relay"]
+    assert result.requests[1].urgency_signal == "urgent"
+    assert result.requests[1].orders == []
 
 
 def test_service_passes_transcript_and_stt_json_to_extractor():

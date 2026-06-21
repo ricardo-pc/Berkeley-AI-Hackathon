@@ -6,13 +6,24 @@
   "insurance_plan": null,
   "request": {
     "type": "reschedule",
-    "details": "Caller wants to move their existing appointment to next Tuesday morning.",
+    "details": "Caller needs to move their appointment to next Tuesday morning.",
     "orders": [],
     "preferred_times": [
       "next Tuesday morning"
     ],
     "urgency_signal": "routine"
   },
+  "requests": [
+    {
+      "type": "reschedule",
+      "details": "Caller needs to move their appointment to next Tuesday morning.",
+      "orders": [],
+      "preferred_times": [
+        "next Tuesday morning"
+      ],
+      "urgency_signal": "routine"
+    }
+  ],
   "missing_fields": [
     "last_name",
     "date_of_birth",

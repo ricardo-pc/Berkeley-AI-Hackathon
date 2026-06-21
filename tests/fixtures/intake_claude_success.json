@@ -13,5 +13,16 @@
     "preferred_times": [],
     "urgency_signal": "routine"
   },
+  "requests": [
+    {
+      "type": "refill",
+      "details": "Patient is requesting a refill of Lisinopril 10mg and asks for a callback.",
+      "orders": [
+        "Lisinopril 10mg"
+      ],
+      "preferred_times": [],
+      "urgency_signal": "routine"
+    }
+  ],
   "missing_fields": []
 }
