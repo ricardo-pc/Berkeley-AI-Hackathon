@@ -66,7 +66,7 @@ curl -X POST http://localhost:8000/api/intake \
 
 ## Schedule Adjustment Eligibility Service
 
-`../eligibility_service/scheduling_eligibility/` checks whether a reschedule request can proceed:
+`../orchestrator/scheduling_eligibility/` checks whether a reschedule request can proceed:
 
 - Calendar conflicts — clinic holidays, provider working hours, and overlapping booked appointments (reads `providers` + `appointments` from Supabase, schema in [docs/database](../../docs/database/README.md)).
 - Repeated-request abuse — flags a patient for a manual call once they've made more than 2 consecutive reschedule requests since their last completed visit.
@@ -78,7 +78,7 @@ The conflict/consecutive-request logic is pure Python (`checks.py`, fully unit t
 Same venv as above, plus:
 
 ```bash
-cd backend/eligibility_service
+cd backend/orchestrator
 pip install -r requirements.txt
 ```
 
@@ -87,7 +87,7 @@ Fill in `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`.
 ### CLI usage
 
 ```bash
-cd backend/eligibility_service
+cd backend/orchestrator
 python3 -m scheduling_eligibility.cli \
   --patient-id <uuid> --provider-id <uuid> \
   --start 2026-06-25T09:00:00+00:00 --end 2026-06-25T09:30:00+00:00 \

@@ -76,7 +76,7 @@ Inbound calls that don't qualify (missing required fields) go to manual review b
 
 This logic currently lives inline in `orchestrator/main_loop.py` rather than as its own agent package; pulling it into a standalone `agents/eligibility` module (mirroring the pattern the other agents use) is still open.
 
-### Prescription Requirement Eligibility Service — ✅ built (`backend/eligibility_service/prescription_eligibility/`)
+### Prescription Requirement Eligibility Service — ✅ built (`backend/orchestrator/prescription_eligibility/`)
 
 Checks whether a patient meets the requirements for a refill — answers "can this go through automatically, or does a human need to look at it first?" Four checks against the real database:
 
@@ -94,7 +94,7 @@ Checks whether a patient meets the requirements for a refill — answers "can th
 - Service tests against the real seeded patients: Maria Gonzalez (eligible, Lisinopril/Amlodipine interaction surfaces as a warning), James Okafor (escalated — last visit 19 months ago, nothing upcoming), never-prescribed-before, missing patient raises a clear error.
 - Write-back tests: passing `task_id` writes checks into that `tasks.agent_checks` row for database compatibility, clears `tasks.agent_summary`, and *merges* with whatever another service already wrote there instead of erasing it; omitting `task_id` touches nothing.
 
-### Schedule Adjustment Eligibility Service — ✅ built and tested live (`backend/eligibility_service/scheduling_eligibility/`)
+### Schedule Adjustment Eligibility Service — ✅ built and tested live (`backend/orchestrator/scheduling_eligibility/`)
 
 Checks whether a patient meets the requirements to adjust their schedule:
 
@@ -110,7 +110,7 @@ Writes back into the same `tasks` row identified by `task_id` (status, proposed_
 
 **Tested live against Supabase** with the Robert Martinez seeded conflict scenario — correctly detected the conflict and (once a free slot was supplied manually) correctly proposed it.
 
-### Message Relay Eligibility Agent — ✅ built (`backend/api/message_relay/`)
+### Message Relay Eligibility Agent — ✅ built (`backend/orchestrator/message_relay/`)
 
 Filters out requests that don't fall into one of: a negative status update, an unreasonable reaction to medication, any discomfort, or a request for some form of accommodation.
 
@@ -171,7 +171,7 @@ Produces a structured daily digest for the front desk: who was scheduled, what w
 Runs the demo intake JSON files end-to-end (intake validation → patient resolution → insurance check → type-specific eligibility) and is the thing that currently proves the pipeline works, scenario by scenario. It's offline-only, against in-memory demo fixtures (`orchestrator/demo_fixtures.py`) — it reuses the real, tested `scheduling_eligibility` package for reschedules, but has its own simplified inline logic for prescription refills and message relay rather than calling the live `prescription_eligibility`/`message_relay` packages against Supabase. Worth reconciling before the demo so there's one source of truth instead of two parallel implementations of the same checks.
 
 ```bash
-python3 -m orchestrator.main_loop --pretty
+python3 -m backend.orchestrator.main_loop --pretty
 ```
 
 ## Test cases (also covered by `tests/test_orchestrator_main_loop.py`)

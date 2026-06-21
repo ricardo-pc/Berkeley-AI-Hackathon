@@ -8,13 +8,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 API_ROOT = REPO_ROOT / "backend" / "api"
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
 
-from backend.eligibility_service.scheduling_eligibility.checks import check_calendar_conflict
-from backend.eligibility_service.scheduling_eligibility.service import run_schedule_eligibility_check
+from scheduling_eligibility.checks import check_calendar_conflict
+from scheduling_eligibility.service import run_schedule_eligibility_check
 
 from .demo_fixtures import APPOINTMENTS, PATIENTS, PRESCRIPTIONS, PROVIDERS, REFERENCE_NOW
 

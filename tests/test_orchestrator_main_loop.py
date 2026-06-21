@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from orchestrator.main_loop import run_directory, run_intake
+from backend.orchestrator.main_loop import run_directory, run_intake
 
 
 DEMO_INPUT = Path(__file__).resolve().parents[1] / "demo" / "intake_output"

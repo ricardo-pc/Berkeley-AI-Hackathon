@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 API_ROOT = Path(__file__).resolve().parent
-ELIGIBILITY_SERVICE_ROOT = API_ROOT.parent / "eligibility_service"
-sys.path.insert(0, str(ELIGIBILITY_SERVICE_ROOT))
+ORCHESTRATOR_ROOT = API_ROOT.parent / "orchestrator"
+sys.path.insert(0, str(ORCHESTRATOR_ROOT))
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
