@@ -389,7 +389,23 @@ def _appointment_to_move(patient_id: str) -> str | None:
 
 
 def _parse_requested_start(intake: dict[str, Any]) -> datetime:
-    text = " ".join((intake.get("request") or {}).get("preferred_times") or [])
+    preferred_times = (intake.get("request") or {}).get("preferred_times") or []
+    first = preferred_times[0] if preferred_times else None
+
+    # Current intake agent output: structured {raw_text, date, start_time, time_of_day}
+    # with relative dates already resolved. Prefer this over text parsing.
+    if isinstance(first, dict) and first.get("date"):
+        year, month, day = (int(part) for part in first["date"].split("-"))
+        if first.get("start_time"):
+            hour, minute = (int(part) for part in first["start_time"].split(":"))
+        elif first.get("time_of_day") == "afternoon":
+            hour, minute = 13, 0
+        else:
+            hour, minute = 9, 0
+        return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+
+    # Fallback: older plain-text preferred_times, or no structured field at all.
+    text = " ".join(t for t in preferred_times if isinstance(t, str))
     if not text:
         text = (intake.get("request") or {}).get("details") or ""
 
