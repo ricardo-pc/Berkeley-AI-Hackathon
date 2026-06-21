@@ -17,17 +17,14 @@ const topMenus = [
   "Help",
 ];
 
-// Nav labels that route somewhere. These are only clickable once a patient is
-// in context (you've clicked into a chart) — matching eClinicalWorks, where
-// most actions require an open patient.
-const ROUTING_LABELS = new Set(["Schedule", "Rx"]);
-
-// Returns the href for a routing label, or null if it's gated (no active
-// patient), or undefined if the label isn't a routing item at all.
+// Returns the href for a routing label, or null if it's gated (needs an active
+// patient), or undefined if the label isn't a routing item at all. Schedule is
+// clinic-wide so it's always available; Rx needs a patient in context.
 function navHrefFor(label: string, patientId: string | null): string | null | undefined {
-  if (!ROUTING_LABELS.has(label)) return undefined;
-  if (!patientId) return null;
-  return label === "Rx" ? `/rx?patientId=${patientId}` : "/schedule";
+  if (label === "Schedule") return "/schedule";
+  if (label === "Encounters") return "/encounters";
+  if (label === "Rx") return patientId ? `/rx?patientId=${patientId}` : null;
+  return undefined;
 }
 
 // /ehr/<id>/... means a chart is open; /ehr (the list) does not.

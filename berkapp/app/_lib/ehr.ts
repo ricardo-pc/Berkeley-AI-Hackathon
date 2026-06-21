@@ -349,6 +349,76 @@ export async function getDaySchedule(dateISO: string): Promise<DaySchedule> {
   return { providers, appointments };
 }
 
+// ---- encounters (message relay list) ----
+
+type MessageRow = {
+  id: string;
+  task_id: string | null;
+  patient_id: string | null;
+  provider_id: string | null;
+  message_body: string | null;
+  delivered: boolean | null;
+  created_at: string | null;
+};
+
+export type EncounterRow = {
+  id: string;
+  serviceDate: string; // MM/DD/YYYY
+  provider: string;
+  resource: string;
+  patient: string; // "Last, First"
+  insurance: string;
+  delivered: boolean;
+  message: string;
+};
+
+// Reads the `messages` table (patient→provider relay requests) and shapes each
+// row for the eClinicalWorks-style Encounters list.
+export async function getEncounters(): Promise<EncounterRow[]> {
+  const db = supabaseAdmin();
+
+  const { data: msgs } = await db
+    .from("messages")
+    .select("*")
+    .order("created_at", { ascending: true });
+  const messages = (msgs ?? []) as MessageRow[];
+  if (!messages.length) return [];
+
+  const patientIds = [...new Set(messages.map((m) => m.patient_id).filter(Boolean))] as string[];
+  const providerIds = [...new Set(messages.map((m) => m.provider_id).filter(Boolean))] as string[];
+
+  const [patientsRes, providersRes] = await Promise.all([
+    patientIds.length
+      ? db.from("patients").select("id,first_name,last_name,insurance_plan").in("id", patientIds)
+      : Promise.resolve({ data: [] as PatientRow[] }),
+    providerIds.length
+      ? db.from("providers").select("id,name").in("id", providerIds)
+      : Promise.resolve({ data: [] as ProviderRow[] }),
+  ]);
+
+  const patientById = new Map<string, PatientRow>(
+    ((patientsRes.data ?? []) as PatientRow[]).map((p) => [p.id, p]),
+  );
+  const providerById = new Map<string, string>(
+    ((providersRes.data ?? []) as ProviderRow[]).map((p) => [p.id, p.name]),
+  );
+
+  return messages.map((m) => {
+    const p = m.patient_id ? patientById.get(m.patient_id) : undefined;
+    const provider = m.provider_id ? providerById.get(m.provider_id) ?? "—" : "—";
+    return {
+      id: m.id,
+      serviceDate: fmtDate(m.created_at),
+      provider,
+      resource: provider,
+      patient: p ? `${p.last_name}, ${p.first_name}` : "Unknown patient",
+      insurance: p?.insurance_plan ?? "—",
+      delivered: Boolean(m.delivered),
+      message: m.message_body ?? "",
+    };
+  });
+}
+
 export async function getPatientBundle(id: string): Promise<PatientBundle | null> {
   const db = supabaseAdmin();
 

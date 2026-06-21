@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "eClinicalWorks — Berkeley Internal Medicine (Demo)",
+  title: "eGyulicalWorks — Berkeley Internal Medicine (Demo)",
   description: "EHR mockup for demonstrating manual front-desk workflows",
 };
 
