@@ -22,6 +22,12 @@ from .demo_fixtures import APPOINTMENTS, PATIENTS, PRESCRIPTIONS, PROVIDERS, REF
 REQUIRED_INTAKE_FIELDS = ["first_name", "last_name", "date_of_birth", "phone_number", "insurance_plan"]
 DEFAULT_PROVIDER_ID = "b1b2c3d4-0001-0001-0001-000000000001"
 
+# Checked against every voicemail's transcript, regardless of request type --
+# a refill or reschedule call can mention these just as easily as a message
+# relay, and an emergency must bypass automation no matter how the caller
+# framed their request.
+EMERGENCY_PHRASES = ["chest pain", "cannot breathe", "stroke", "unconscious", "emergency"]
+
 
 class DemoScheduleRepo:
     def get_provider(self, provider_id: str) -> dict[str, Any]:
@@ -55,8 +61,20 @@ def run_intake_file(path: Path) -> dict[str, Any]:
 def run_intake(intake: dict[str, Any]) -> dict[str, Any]:
     request = intake.get("request") or {}
     task_type = _normalize_task_type(request.get("type"))
-    missing_fields = _missing_fields(intake)
     patient = _resolve_patient(intake)
+
+    if _has_any(intake.get("transcript") or "", EMERGENCY_PHRASES):
+        return _task(
+            intake=intake,
+            patient=patient,
+            task_type="escalate",
+            status="escalated",
+            agent_checks={"triage": {"emergency_signal": True}},
+            flagged_reason="Emergency symptoms mentioned in voicemail — bypasses automation, call immediately.",
+            proposed_action={"type": "escalate", "reason": "emergency symptoms mentioned"},
+        )
+
+    missing_fields = _missing_fields(intake)
 
     agent_checks: dict[str, Any] = {
         "intake_eval": {
@@ -246,25 +264,11 @@ def _run_reschedule(intake: dict[str, Any], patient: dict[str, Any], agent_check
 
 
 def _run_message_relay(intake: dict[str, Any], patient: dict[str, Any], agent_checks: dict[str, Any]) -> dict[str, Any]:
+    # Emergency phrases are already caught upstream in run_intake(), before
+    # task_type dispatch even happens -- nothing left to check for here.
     transcript = intake.get("transcript") or ""
-    emergency = _has_any(transcript, ["chest pain", "cannot breathe", "stroke", "unconscious", "emergency"])
     adverse_reaction = _has_any(transcript, ["dizzy", "dizziness", "nauseous", "nausea", "reaction"])
-    agent_checks["message"] = {
-        "qualifies": not emergency,
-        "adverse_reaction_reported": adverse_reaction,
-        "emergency_signal": emergency,
-    }
-
-    if emergency:
-        return _task(
-            intake=intake,
-            patient=patient,
-            task_type="escalate",
-            status="escalated",
-            agent_checks=agent_checks,
-            flagged_reason="Emergency symptoms mentioned in voicemail.",
-            proposed_action={"type": "escalate", "reason": "emergency symptoms mentioned"},
-        )
+    agent_checks["message"] = {"adverse_reaction_reported": adverse_reaction}
 
     return _task(
         intake=intake,
